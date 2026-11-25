@@ -89,7 +89,9 @@ bist_asistan/
 │   └── bist100.csv         # hisse evreni (kaynak ve tarih referans/README.md'de)
 ├── ileri_test/             # ileri test kayıtları (git'te, her gün otomatik commit)
 │   ├── tahminler/          # günlük tahmin dosyaları (YYYY-AA-GG.csv), değiştirilemez
-│   ├── zincir.csv          # SHA-256 parmak izi zinciri
+│   ├── acilislar/          # sabah kaydedilen açılış fiyatları (YYYY-AA-GG.csv)
+│   ├── zincir.csv          # tahminlerin SHA-256 parmak izi zinciri
+│   ├── acilis_zincir.csv   # açılış kayıtlarının parmak izi zinciri
 │   ├── model_surumu.json   # dondurulmuş modelin parmak izi
 │   └── ileri_test.xlsx     # korumalı Excel raporu (kayıtlardan üretilir, git dışında)
 ├── notebooks/
@@ -146,11 +148,13 @@ bist_asistan/
 ### 2b. İleri test (paper trading)
 Backtest geçmişe bakar; ileri test ise modeli **gerçek zamanlı** sınar: tahmin yapıldığı anda gelecek gerçekten bilinmez.
 - Her iş günü akşamı (Windows Görev Zamanlayıcı, 19:00 + yeniden denemeler) BIST 100 için tahmin üretilir.
+- Her iş günü sabahı (10:30 + yeniden denemeler) 100 hissenin açılış fiyatı ayrı bir parmak izi zinciriyle kaydedilir; bu kayıt sadece o gün seans bitmeden yapılabilir.
+- **Ara durum:** Her tahmin için girişten sonraki her günün kapanışına göre o ana kadarki getiri izlenir (1. gün … 5. gün); kesin sonuç 5. gün.
 - **Dondurulmuş model:** İleri test boyunca model değişmez; parmak izi git'te, dosya değişirse tahmin üretilmez.
 - **Değiştirilemezlik:** Günlük tahmin dosyaları SHA-256 parmak iziyle birbirine zincirlenir ve git'e commit'lenir. Tek bir sayı değişse `python -m src.ileri_test.gunluk --dogrula` hangi günde olduğunu söyler.
 - **Süre kuralı:** Bir günün tahmini en geç ertesi seans açılışına (09:55) kadar yapılabilir; kaçırılan günler sonradan doldurulmaz.
 - **Sonuçlar:** 5 iş günü dolunca gerçekleşen getiri hesaplanır ve walk-forward beklentisiyle karşılaştırılır.
-- **Excel (`ileri_test/ileri_test.xlsx`, korumalı):** Özet · Tahminler · Hisse Özeti · Hisse Bilgileri · Günlük · Bütünlük.
+- **Excel (`ileri_test/ileri_test.xlsx`, korumalı):** Özet · Tahminler · Gözlemler (sabah açılış / akşam kapanış) · Hisse Özeti · Hisse Kartı (genel bilgi) · Günlük · Bütünlük.
 
 ### 3. Backtest motoru
 - `pandas` ile **kendimiz yazıyoruz** (hazır kütüphane yerine). Böylece mülakatta her satırı açıklayabiliriz.

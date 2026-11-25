@@ -152,6 +152,10 @@ C: Ortak model 300 ağaçla bütün hisselerden eğitiliyor. Sonra her hisse iç
 2. **Yahoo kesintileri:** Görev aynı akşam birden çok kez tetikleniyor. Aynı gün tekrar çalıştığında hiçbir şey yapmıyor, böylece ilk deneme başarısız olsa bile sonraki deneme kaydı tamamlıyor. Hisselerin %90'ından azı güncelse ya da endeks gelmediyse tahmin üretmiyor.
 3. **Model boyutu:** 81 hisseye özel model ortak modelin ağaçlarını da içerdiği için dosya 22 MB oldu. Git'e sadece parmak izi giriyor.
 
+### Sonradan eklenenler (kullanıcı geri bildirimiyle)
+- **Sabah açılış kaydı:** Her iş günü 10:30'da 100 hissenin açılış fiyatı ayrı bir parmak izi zincirine yazılıyor. Bu kayıt sadece o gün ve seans bitmeden yapılabiliyor. Akşam gelen resmi açılışla %0,5'ten fazla fark varsa "Gözlemler" sayfasında işaretleniyor.
+- **Günlük ara durum:** Model 5 günlük getiriyi tahmin ediyor, ama her akşam her tahmin için "bugüne kadar ne oldu" gösteriliyor (1. gün, 2. gün … 5. gün). Kesin hüküm 5. gün veriliyor. Modeli ertesi günün hareketiyle değerlendirmek, ona sorulmamış bir sorunun cevabını aramak olurdu.
+
 ### Olası mülakat soruları
 **S: Backtest ile ileri test arasındaki fark ne?**
 C: Backtest geçmiş veride stratejiyi simüle eder; araştırmacı sonucu bildiği için kararlarına bilmeden geçmiş bilgi sızabilir. İleri test modeli dondurup gerçek zamanlı tahmin ettirir. Tahmin yapıldığı anda gelecek bilinmediği için sızıntı imkânsızdır. Kurumsal tarafta bir strateji genellikle backtest ve ardından birkaç ay paper trading'den geçmeden gerçek parayla çalıştırılmaz.

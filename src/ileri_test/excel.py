@@ -24,7 +24,7 @@ from src.ileri_test.kayit import IT_DIZINI
 log = logging.getLogger(__name__)
 EXCEL_YOLU = IT_DIZINI / "ileri_test.xlsx"
 BASLIK_DOLGU = PatternFill("solid", fgColor="DCE6F2")
-YUZDE_SUTUNLARI = ("isabet", "oran", "getiri", "olasilik", "verim", "vol", "beklenti")
+YUZDE_SUTUNLARI = ("isabet", "oran", "getiri", "olasilik", "verim", "vol", "beklenti", "farki")
 
 
 def hisse_bilgileri(veri: dict[str, pd.DataFrame], hisse_ozeti: pd.DataFrame) -> pd.DataFrame:
@@ -65,7 +65,7 @@ def _bicimlendir(ws, sifre: str | None) -> None:
         if any(a in baslik for a in YUZDE_SUTUNLARI):
             for c in sutun[1:]:
                 c.number_format = "0.0%"
-        elif "fiyat" in baslik or baslik in ("kapanis", "temettu_tl_12a", "rsi_14"):
+        elif any(k in baslik for k in ("fiyat", "acilis", "kapanis")) or baslik in ("temettu_tl_12a", "rsi_14"):
             for c in sutun[1:]:
                 c.number_format = "#,##0.00"
     if ws.max_row > 1 and ws.max_column > 1:
@@ -79,7 +79,8 @@ def _bicimlendir(ws, sifre: str | None) -> None:
 
 
 def excel_uret(tahminler: pd.DataFrame, veri: dict[str, pd.DataFrame], zincir: pd.DataFrame,
-               sorunlar: list[str], model_bilgi: dict | None, yol: Path = EXCEL_YOLU) -> Path:
+               sorunlar: list[str], model_bilgi: dict | None, yol: Path = EXCEL_YOLU,
+               acilis_kayitlari: pd.DataFrame | None = None) -> Path:
     """Tüm sayfaları yazar. Dosya Excel'de açıksa yan dosyaya yazar."""
     load_dotenv(config.KOK_DIZIN / ".env")
     sifre = os.getenv("IT_EXCEL_SIFRE") or None
@@ -106,10 +107,12 @@ def excel_uret(tahminler: pd.DataFrame, veri: dict[str, pd.DataFrame], zincir: p
         ("Tüm tahminler ort. 5g getiri", oz.get("tum_ort_getiri"), np.nan),
     ], columns=["olcu", "ileri_test", "walk_forward_beklenti"])
 
+    acilis_kayitlari = acilis_kayitlari if acilis_kayitlari is not None else pd.DataFrame()
     sayfalar = {
         "Tahminler": sonuc.sort_values(["tahmin_tarihi", "kod"], ascending=[False, True]) if len(sonuc) else sonuc,
+        "Gözlemler": sonuc_mod.gozlemler(acilis_kayitlari, tahminler, veri),
         "Hisse Özeti": h_ozet.reset_index() if len(h_ozet) else h_ozet,
-        "Hisse Bilgileri": hisse_bilgileri(veri, h_ozet).reset_index(),
+        "Hisse Kartı (genel bilgi)": hisse_bilgileri(veri, h_ozet).reset_index(),
         "Günlük": sonuc_mod.gunluk_ozet(sonuc).reset_index() if len(sonuc) else pd.DataFrame(),
         "Bütünlük": zincir,
     }

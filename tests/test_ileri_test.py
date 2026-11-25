@@ -97,7 +97,14 @@ def test_sonuc_ertesi_gun_acilistan_5_gun():
     assert ilk["giris_tarihi"] == pd.Timestamp("2026-11-03")
     assert ilk["gerceklesen_getiri"] == pytest.approx(106 / 101 - 1)
     assert ilk["model_dogru"] == 1.0 and ilk["durum"] == "tamamlandı"
-    assert s.iloc[1]["durum"] == "bekliyor"
+    # 06.11 (Cuma) tahmini: giriş 09.11 açılışı (105), veri 12.11'de bitiyor -> 4. gündeyiz
+    ikinci = s.iloc[1]
+    assert ikinci["durum"] == "4. gün" and ikinci["gecen_gun"] == 4
+    assert ikinci["gun_1_getiri"] == pytest.approx(105 / 105 - 1)   # 09.11 kapanışı
+    assert ikinci["gun_3_getiri"] == pytest.approx(110 / 105 - 1)   # 11.11 kapanışı
+    assert ikinci["gun_4_getiri"] == pytest.approx(90 / 105 - 1)    # 12.11 kapanışı
+    assert ikinci["anlik_getiri"] == pytest.approx(ikinci["gun_4_getiri"])
+    assert ilk["anlik_getiri"] == pytest.approx(ilk["gerceklesen_getiri"])
     o = sonuc.ozet(s)
     assert o["tamamlanan"] == 1 and o["guclu_al_isabeti"] == 1.0
 
@@ -139,6 +146,36 @@ def test_excel_uretilir_ve_korumali(tmp_path, kucuk_tablo):
                            {"model": "m", "surum": "v1", "egitim_son_tarih": "2023-05-01"},
                            yol=tmp_path / "it.xlsx")
     kitap = load_workbook(yol)
-    assert kitap.sheetnames == ["Özet", "Tahminler", "Hisse Özeti", "Hisse Bilgileri", "Günlük", "Bütünlük"]
+    assert kitap.sheetnames == ["Özet", "Tahminler", "Gözlemler", "Hisse Özeti",
+                                "Hisse Kartı (genel bilgi)", "Günlük", "Bütünlük"]
     assert all(ws.protection.sheet for ws in kitap.worksheets)
     assert kitap["Özet"]["B3"].value.startswith("✓")   # Kayıt bütünlüğü satırı
+
+
+def test_acilis_kaydi_sadece_o_gun_seans_icinde(tmp_path):
+    tablo = pd.DataFrame({"kod": ["A"], "acilis": [10.0], "anlik_fiyat": [10.1], "kayit_saati": ["10:30:00"]})
+    kayit.tahmin_kaydet(tablo, "2026-11-26", "-", simdi=pd.Timestamp("2026-11-26 10:30", tz=TZ),
+                        dizin=tmp_path, tur="acilis")
+    with pytest.raises(ValueError):   # seans bittikten sonra
+        kayit.tahmin_kaydet(tablo, "2026-11-27", "-", simdi=pd.Timestamp("2026-11-27 18:30", tz=TZ),
+                            dizin=tmp_path, tur="acilis")
+    with pytest.raises(ValueError):   # başka bir gün için
+        kayit.tahmin_kaydet(tablo, "2026-11-27", "-", simdi=pd.Timestamp("2026-11-28 11:00", tz=TZ),
+                            dizin=tmp_path, tur="acilis")
+    assert kayit.dogrula(tmp_path) == []
+    assert (tmp_path / "acilis_zincir.csv").exists() and not (tmp_path / "zincir.csv").exists()
+
+
+def test_bugunku_satirlar_ve_gozlemler():
+    from src.ileri_test.acilis import bugunku_satirlar
+    idx = pd.DatetimeIndex(["2026-11-25", "2026-11-26"]).tz_localize(TZ)
+    ham = {"AAA.IS": pd.DataFrame({"Open": [9.0, 10.0], "Close": [9.5, 10.2]}, index=idx)}
+    t = bugunku_satirlar(ham, pd.Timestamp("2026-11-26 10:30"))
+    assert t.to_dict("records") == [{"kod": "AAA", "acilis": 10.0, "anlik_fiyat": 10.2}]
+
+    veri = {"AAA.IS": fiyat([10.0, 11.0], baslangic="2026-11-26")}
+    acilislar = t.assign(tahmin_tarihi=pd.Timestamp("2026-11-26"), kayit_saati="10:30:00")
+    tahmin = pd.DataFrame({"kod": ["AAA"], "kapanis": [10.0], "tahmin_tarihi": [pd.Timestamp("2026-11-26")]})
+    g = sonuc.gozlemler(acilislar, tahmin, veri)
+    assert g.loc[0, "sabah_acilis"] == 10.0 and g.loc[0, "resmi_acilis"] == 10.0
+    assert g.loc[0, "uyari"] == ""

@@ -5,6 +5,7 @@ Kullanım:
   python -m src.ileri_test.gunluk --dondur    # ileri test başında bir kez: modeli dondur
   python -m src.ileri_test.gunluk --dogrula   # kayıtların değişmediğini kontrol et
   python -m src.ileri_test.gunluk --excel     # sadece Excel'i yeniden üret
+  python -m src.ileri_test.gunluk --acilis    # sabah 10:30: açılış fiyatlarını kaydet
 
 Aynı gün birden çok kez çalıştırılabilir: kayıt zaten varsa yeni tahmin üretmez.
 Kaçırılan günler sonradan doldurulmaz (o tahmin artık 'geleceği bilmeden' yapılmış olmaz).
@@ -20,7 +21,7 @@ import pandas as pd
 from src import config
 from src.data import cache, fetch
 from src.features.indicators import veri_seti_olustur
-from src.ileri_test import excel, kayit
+from src.ileri_test import acilis, excel, kayit
 from src.ileri_test import model as it_model
 from src.models import deney
 
@@ -45,13 +46,15 @@ def _veriyi_ayir(veri: dict) -> tuple[dict, pd.DataFrame, pd.DataFrame | None]:
     return veri, veri.pop(config.ENDEKS, None), veri.pop(config.USDTRY, None)
 
 
-def git_commit(tarih: str) -> None:
+def git_commit(tarih: str, tur: str = "tahminleri") -> None:
     """Sadece ileri test kayıtlarını commit'ler (başka değişikliklere dokunmaz)."""
-    yollar = ["ileri_test/tahminler", "ileri_test/zincir.csv", "ileri_test/model_surumu.json"]
+    yollar = [p for p in ["ileri_test/tahminler", "ileri_test/zincir.csv", "ileri_test/acilislar",
+                          "ileri_test/acilis_zincir.csv", "ileri_test/model_surumu.json"]
+              if (config.KOK_DIZIN / p).exists()]
     try:
         subprocess.run(["git", "add", "--", *yollar], cwd=config.KOK_DIZIN, check=True, capture_output=True)
         sonuc = subprocess.run(
-            ["git", "commit", "-m", f"İleri test: {tarih} tahminleri", "--", *yollar],
+            ["git", "commit", "-m", f"İleri test: {tarih} {tur}", "--", *yollar],
             cwd=config.KOK_DIZIN, capture_output=True, text=True, encoding="utf-8")
         if sonuc.returncode == 0:
             log.info("git commit yapıldı: %s", tarih)
@@ -70,7 +73,8 @@ def excel_guncelle(veri: dict | None = None) -> None:
     except (FileNotFoundError, it_model.ModelDegisti) as hata:
         log.warning("Model bilgisi okunamadı: %s", hata)
         bilgi = None
-    yol = excel.excel_uret(kayit.tum_tahminler(), veri, kayit.zinciri_oku(), kayit.dogrula(), bilgi)
+    yol = excel.excel_uret(kayit.tum_tahminler(), veri, kayit.zinciri_oku(), kayit.dogrula(), bilgi,
+                           acilis_kayitlari=kayit.tum_tahminler(tur="acilis"))
     log.info("Excel güncellendi: %s", yol)
 
 
@@ -131,6 +135,7 @@ def main() -> None:
     grup.add_argument("--dondur", action="store_true", help="modeli dondur (bir kez)")
     grup.add_argument("--dogrula", action="store_true", help="kayıt bütünlüğünü kontrol et")
     grup.add_argument("--excel", action="store_true", help="sadece Excel'i yeniden üret")
+    grup.add_argument("--acilis", action="store_true", help="sabah: açılış fiyatlarını kaydet")
     arg = ayr.parse_args()
     _gunluk_kayit_ayarla()
 
@@ -142,6 +147,15 @@ def main() -> None:
         sys.exit(1 if sorunlar else 0)
     elif arg.excel:
         excel_guncelle()
+    elif arg.acilis:
+        try:
+            kod = acilis.acilis_kaydet()
+            if kod == 0:
+                git_commit(pd.Timestamp.now(tz=config.SAAT_DILIMI).strftime("%Y-%m-%d"), "açılış fiyatları")
+            sys.exit(kod)
+        except Exception:
+            log.exception("Açılış kaydı hata verdi.")
+            sys.exit(1)
     else:
         try:
             sys.exit(gunluk())
