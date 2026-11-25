@@ -165,3 +165,45 @@ C: Her günün tahmin dosyasının SHA-256 parmak izi bir önceki günün zincir
 
 **S: İleri test ne kadar sürmeli?**
 C: İstatistiksel olarak yeterli tamamlanmış tahmin birikmeli. Günde 100 hisse ile bir ayda yaklaşık 2.000 tahmin oluşur. Ama aynı günün tahminleri birbirine bağımlıdır (hepsi aynı piyasa hareketini yaşar), bu yüzden asıl önemli olan gün sayısı. En az 3 ay ve farklı piyasa koşulları görmek gerekir. Sonuç walk-forward beklentisinden (%52,3 isabet, güçlü sinyalde %57,9) belirgin şekilde sapıyorsa bu, modelin piyasa koşulları değiştiği için artık işe yaramadığına (model drift) işaret eder.
+
+
+---
+
+## Aşama 3: Backtest
+
+### Ne yaptık?
+- **Kendi yazdığımız vektörel motor (`src/backtest/engine.py`):** Sinyal t kapanışında üretiliyor, pozisyon t+1 açılışında alınıyor, getiriler açılıştan açılışa hesaplanıyor. Her pozisyon değişiminde %0,1 komisyon + %0,05 kayma düşülüyor.
+- **4 strateji (`strategies.py`):** Al-ve-tut, MA 20/50 kesişimi, RSI 30/70, ML sinyali (5 günde bir karar, 5 gün tutma).
+- **ML portföyü:** Her 5 iş gününde bir, eşiği aşan en yüksek olasılıklı 10 hisse alınıyor; eşiği aşan hisse azsa kalan pay nakitte bekliyor. Volatiliteye göre ağırlıklandırılmış bir versiyonu da var.
+- **Karşılaştırma ölçütleri:** XU100, 81 hissenin eşit ağırlıklı portföyü, rastgele 10 hisse (20 tekrar ortalaması).
+- **Metrikler (`metrics.py`):** Toplam getiri, CAGR (TL ve USD), volatilite, Sharpe (risksiz faiz = politika faizi), maksimum düşüş (TL ve USD), işlem sayısı, kazanma oranı, piyasada kalma süresi.
+- Nakitli ve nakitsiz senaryolar, maliyet duyarlılığı ve yıllık getiri tabloları.
+
+### Sonuç (2019-2026)
+- **ML stratejisi al-ve-tut'u geçemedi.** ML ilk 10 portföyü yıllık %35; aynı hisselerin eşit ağırlıklı portföyü %56, rastgele 10 hisse %38.
+- Maliyet sıfır olsa bile ML geride kalıyor: sorun sadece komisyon değil, sinyalin kendisi zayıf.
+- Hisse bazında MA kesişimi al-ve-tut'a yakın getiriyi daha düşük düşüşle (-%40'a karşı -%52) sağlıyor, ama hisselerin sadece yarısında geçiyor.
+- USD bazında tablo çok farklı: XU100 yıllık sadece %4, ML %1,5. TL'deki yüksek getirilerin çoğu enflasyon ve kur kaybı.
+
+### Neden böyle yaptık?
+- **Açılıştan açılışa getiri:** Akşam üretilen sinyalle en erken ertesi sabah işlem yapılabilir. Kapanış fiyatından işlem varsaymak, gerçekte ulaşılamayacak bir fiyatı kullanmak olurdu.
+- **Sharpe'ta politika faizi:** Faiz %36-50 iken risksiz faizi 0 saymak, enflasyonla şişmiş TL getirilerini olduğundan çok daha iyi gösterir.
+- **Nakit faizi:** Türkiye'de piyasa dışındaki para, para piyasası fonunda yüksek faiz kazanır. Bunu hesaba katmamak seçici stratejilere haksızlık olur. Hesaba katmak ise getirinin nereden geldiğini gösterdi: ML 0,60 portföyünün getirisinin önemli kısmı faizden geliyordu.
+- **Rastgele portföy karşılaştırması:** Bir modelin değeri, aynı kurallarla rastgele seçime göre ölçülmeli. Bu karşılaştırma modelin aslında bir avantajı olmadığını açıkça gösterdi.
+
+### Karşılaşılan sorunlar ve dersler
+1. **Havuzlanmış metrik tuzağı:** Aşama 2'de "model en emin olduğunda ortalamanın 0,42 puan üstünde getiri" bulmuştuk. Backtest bunu doğrulamadı, çünkü o metrik farklı günlerin hisselerini bir havuzda karşılaştırıyordu; fark büyük ölçüde piyasanın genel yükseldiği günlerden geliyordu. Portföy ise aynı gün içinde hisseleri sıralıyor. Ders: değerlendirme metriği, stratejinin gerçekte yapacağı işle aynı soruyu sormalı.
+2. **Survivorship bias'ın görünür etkisi:** Eşit ağırlıklı 81 hisse XU100'ü yılda 17 puan geçiyor. Bunun büyük kısmı, hisse listesinin bugünün BIST 100'ünden (yani hayatta kalanlardan) seçilmesinden geliyor. Bu yüzden XU100 ile değil, aynı evrenden seçen eşit ağırlıklı portföyle karşılaştırma yapıyorum.
+
+### Olası mülakat soruları
+**S: Modelin para kazandırmıyor. Proje başarısız mı?**
+C: Hayır. Projenin amacı para kazandıran bir model iddia etmek değil, bir fikri doğru test etmekti. Sızıntısız walk-forward, gerçekçi maliyet, rastgele portföy kıyası ve ileri test ile modelin avantajı olmadığını güvenilir şekilde gösterdim. Finansta en sık yapılan hata, kötü test edilmiş bir stratejiye güvenmek; bu proje o hatayı yapmamayı gösteriyor. Bir de olumlu sonuç var: volatilite modeli her yıl basit yöntemi geçiyor.
+
+**S: Backtest'te en sık yapılan hatalar neler, sen nasıl önledin?**
+C: (1) Look-ahead: sinyal kapanışta, işlem ertesi açılışta; bunu test eden bir pytest var. (2) Maliyetleri yok saymak: komisyon + kayma ve duyarlılık tablosu. (3) Survivorship bias: farkındayım ve karşılaştırmayı aynı evrende yapıyorum. (4) Aşırı optimizasyon: parametreleri test sonucuna göre ayarlamadım, 0,60 eşiğinin bu riski taşıdığını da raporladım. (5) Uygun olmayan ölçüt: rastgele portföy ve eşit ağırlık gibi adil karşılaştırmalar kullandım.
+
+**S: Sharpe oranın neden bu kadar düşük?**
+C: Çünkü risksiz faiz olarak %36-50 seviyesindeki politika faizini kullanıyorum. TL'de yıllık %35 getiri kulağa yüksek gelir, ama aynı dönemde mevduat da yaklaşık o kadar kazandırdı. Doğru soru "hisse almak faizden ne kadar fazla kazandırdı?" sorusu.
+
+**S: Bundan sonra ne denerdin?**
+C: Modeli doğrudan gün içi sıralama için eğitmek (hedef: o gün hisselerin ortancasını geçer mi). Değerlendirmeyi portföyün yaptığı işe uygun metrikle (günlük sıralama korelasyonu) yapmak. Devir hızını düşürmek (ör. sadece sinyal belirgin değiştiğinde işlem yapmak). Ve volatilite modelini risk yönetiminde kullanmak.

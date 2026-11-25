@@ -23,3 +23,15 @@ ML modelinde yapılan her iyileştirme denemesi buraya kaydedilir. Başarısız 
 - Hedefi göreli tanımlamak (o gün hisselerin ortanca getirisini geçer mi?): piyasa etkisini tamamen çıkarır.
 - Hiperparametre ayarı: sadece eğitim dönemi içinde iç walk-forward ile.
 - Volatilite tahminini backtest'te pozisyon büyüklüğü için kullanmak.
+
+
+## Aşama 3: Backtest ile doğrulama (2026-11-25)
+
+| # | Ne test edildi? | Sonuç (2019-01 → 2026-11, maliyet işlem başı %0,15) | Hüküm |
+|---|---|---|---|
+| 6 | ML ilk 10 portföyü (5 günde bir dengeleme), eşik 0,60 ve 0,50 | Yıllık %34,9 / %35,3; eşit ağırlıklı 81 hisse %56,2; rastgele 10 hisse %37,7; XU100 %39,0 | ❌ Model rastgele seçimi bile geçmiyor |
+| 7 | Volatilite tahminine göre ağırlık (ters volatilite) | %34,9, maks. düşüş -%34,9 (eşit ağırlıklı ML: -%35,5) | ➖ Etkisi yok denecek kadar küçük |
+| 8 | Maliyet duyarlılığı | Maliyet sıfırken ML %43,6-49,9, eşit ağırlık %56,3 | ❌ Sorun sadece maliyet değil; maliyetsiz de geride |
+| 9 | Nakit faizi | ML 0,60 zamanın %44'ünde nakitte; faiz olmadan yıllık %19,3 | ⚠️ Seçici eşiğin görünen getirisinin büyük kısmı faiz |
+
+**Ders:** Deney 4'teki "güçlü sinyalde ort. 5g getiri %1,43, ortalama %1,01" sonucu, farklı günlerin hisseleri havuzlanarak hesaplandı. Bu fark büyük ölçüde zamanlamadan (piyasanın genel olarak yükseldiği günler) geliyor; aynı gün içinde hisse seçimi (portföyün yaptığı iş) için bir avantaj sağlamıyor. Bundan sonra model değerlendirmesinde **gün içi sıralama metrikleri** (ör. günlük ilk-son dilim farkı, günlük AUC ortalaması) ana metrik olmalı.

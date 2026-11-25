@@ -24,6 +24,8 @@ CEKIRDEK_HISSELER = [
 
 # --- Backtest ---
 KOMISYON_ORANI = 0.001   # %0,1 (alım ve satımda ayrı ayrı uygulanır)
+KAYMA_ORANI = 0.0005     # %0,05 kayma (slippage): gerçek işlem fiyatı beklenenden biraz kötü
+ISLEM_MALIYETI = KOMISYON_ORANI + KAYMA_ORANI   # her alım ya da satımda toplam maliyet
 
 # --- Piyasa kuralları ---
 GUNLUK_FIYAT_LIMITI = 0.10   # BIST pay piyasası günlük ±%10 fiyat limiti

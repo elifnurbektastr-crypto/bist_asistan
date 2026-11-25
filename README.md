@@ -162,6 +162,9 @@ Backtest geçmişe bakar; ileri test ise modeli **gerçek zamanlı** sınar: tah
 - **Gerçekçilik:** İşlem komisyonu (varsayılan %0,1, `config.py`'den ayarlanır), sinyal ertesi günün açılışında uygulanır.
 - **Metrikler:** Toplam getiri, yıllık getiri (CAGR), Sharpe oranı, maksimum düşüş (max drawdown), işlem sayısı, kazanma oranı
 - **TL ve USD bazlı getiri** ayrı gösterilir. Türkiye'de yüksek enflasyon nedeniyle bu önemli bir fark yaratır ve projeyi diğerlerinden ayırır.
+- **Türkiye'ye özgü gerçekçilik:** Piyasa dışındaki nakit politika faizi kazanır (para piyasası fonu varsayımı); Sharpe'ta risksiz faiz = politika faizi. İşlem maliyeti %0,1 komisyon + %0,05 kayma.
+- **ML portföyü:** 5 günde bir, eşiği aşan en güçlü 10 hisse. Karşılaştırma: XU100, eşit ağırlıklı 81 hisse, rastgele 10 hisse.
+- **Aşama 3 sonucu (2019-2026):** ML portföyü yıllık %35 (TL) ile eşit ağırlıklı portföyün (%56) ve rastgele seçimin (%38) gerisinde kaldı; maliyetsiz senaryoda da geride. Model sinyali al-ve-tut'u geçmiyor. Ayrıntılar: `docs/deney-gunlugu.md`.
 
 ### 4. LLM ajanı
 - Claude API ile **tool use** (fonksiyon çağırma). Kullanılacak model ve SDK sürümü güncel Anthropic dokümantasyonuna göre seçilir.
@@ -205,7 +208,7 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 - [x] **Aşama 1: Veri katmanı.** Veri çekme, önbellek ve testler. Keşif notebook'u.
 - [x] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
 - [x] **Aşama 3a: İleri test.** Dondurulmuş model, günlük tahmin, parmak izi zinciri, korumalı Excel, Görev Zamanlayıcı
-- [ ] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
+- [x] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
 - [ ] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
 - [ ] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
 - [ ] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
