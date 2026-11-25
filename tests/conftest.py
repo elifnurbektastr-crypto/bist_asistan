@@ -4,6 +4,13 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _supabase_kapali(monkeypatch):
+    """Testler yerel SQLite deposunu kullanır; boş ortam değişkeni .env'deki değeri gölgeler."""
+    for ad in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "BIST_BULUT"):
+        monkeypatch.setenv(ad, "")
+
+
 @pytest.fixture
 def yf_ornek() -> pd.DataFrame:
     """yfinance biçiminde 8 günlük sahte veri.

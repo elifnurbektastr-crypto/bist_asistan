@@ -1,0 +1,5 @@
+# Geliştirme bağımlılıkları: pip install -r requirements-dev.txt
+-r requirements.txt
+pytest>=8.0
+jupyter>=1.0
+matplotlib>=3.8      # notebook grafikleri (statik)

@@ -131,6 +131,7 @@ KOMUTLAR = {
     "İleri test kayıtlarını doğrula": [sys.executable, "-m", "src.ileri_test.gunluk", "--dogrula"],
     "İleri test Excel'ini yeniden üret": [sys.executable, "-m", "src.ileri_test.gunluk", "--excel"],
     "Backtest raporunu yeniden üret": [sys.executable, "-m", "src.backtest.rapor"],
+    "Veriyi buluta yükle (Supabase)": [sys.executable, "-m", "src.bulut", "--yukle"],
 }
 
 

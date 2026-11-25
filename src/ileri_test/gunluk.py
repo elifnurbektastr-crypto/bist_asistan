@@ -21,6 +21,7 @@ import pandas as pd
 from src import config
 from src.data import cache, fetch
 from src.features.indicators import veri_seti_olustur
+from src import bulut
 from src.ileri_test import acilis, excel, kayit
 from src.ileri_test import model as it_model
 from src.models import deney
@@ -62,6 +63,30 @@ def git_commit(tarih: str, tur: str = "tahminleri") -> None:
             log.warning("git commit yapılamadı: %s", (sonuc.stdout + sonuc.stderr).strip()[:300])
     except (OSError, subprocess.CalledProcessError) as hata:
         log.warning("git çalıştırılamadı: %s", hata)
+
+
+def yayinla() -> None:
+    """Kayıtları GitHub'a gönderir, veri dosyalarını Supabase'e yükler. Hata görevi durdurmaz.
+
+    GitHub'daki tarihli commit'ler ileri test kayıtlarının sonradan değiştirilmediğinin
+    herkese açık kanıtıdır; Supabase'deki dosyalar buluttaki uygulamanın veri kaynağıdır.
+    """
+    try:
+        s = subprocess.run(["git", "push", "origin", "HEAD"], cwd=config.KOK_DIZIN, capture_output=True,
+                           text=True, encoding="utf-8", timeout=180)
+        if s.returncode == 0:
+            log.info("GitHub'a gönderildi.")
+        else:
+            log.warning("GitHub'a gönderilemedi: %s", (s.stdout + s.stderr).strip()[:300])
+    except (OSError, subprocess.TimeoutExpired) as hata:
+        log.warning("git push çalıştırılamadı: %s", hata)
+    if not bulut.ayarlar()["secret"]:
+        log.info("SUPABASE_SECRET_KEY yok; buluta yükleme atlandı.")
+        return
+    try:
+        bulut.yukle()
+    except Exception as hata:
+        log.warning("Buluta yüklenemedi: %s", hata)
 
 
 def excel_guncelle(veri: dict | None = None) -> None:
@@ -126,6 +151,7 @@ def gunluk() -> int:
              ", ".join(tahmin.loc[tahmin["sinyal"] == "güçlü al", "kod"]) or "yok", eski or "yok")
     git_commit(tarih.strftime("%Y-%m-%d"))
     excel_guncelle(veri)
+    yayinla()
     return 0
 
 
@@ -152,6 +178,7 @@ def main() -> None:
             kod = acilis.acilis_kaydet()
             if kod == 0:
                 git_commit(pd.Timestamp.now(tz=config.SAAT_DILIMI).strftime("%Y-%m-%d"), "açılış fiyatları")
+                yayinla()
             sys.exit(kod)
         except Exception:
             log.exception("Açılış kaydı hata verdi.")

@@ -1,4 +1,4 @@
-# pip freeze çıktısı — Aşama 5 sonrası birebir sürümler (Python 3.12.8)
+# pip freeze çıktısı — Aşama 6 birebir sürümler (Python 3.12.8)
 altair==6.3.0
 annotated-types==0.8.0
 anyio==4.16.0
@@ -19,10 +19,12 @@ cloudpickle==3.1.3
 colorama==0.4.6
 comm==0.2.3
 contourpy==1.4.0
+cryptography==50.0.2
 curl_cffi==0.17.0
 cycler==0.12.1
 debugpy==1.8.22
 defusedxml==0.7.1
+deprecation==2.1.0
 docstring_parser==0.18.0
 et_xmlfile==2.0.0
 evds==0.4.0
@@ -31,10 +33,13 @@ fastjsonschema==2.22.3
 fonttools==4.68.0
 fqdn==1.6.0
 h11==0.16.0
+h2==4.4.1
+hpack==4.2.0
 httpcore==1.0.9
 httpcore2==2.16.2
 httpx==0.28.1
 httpx2==2.16.2
+hyperframe==6.1.0
 idna==3.20
 iniconfig==2.3.1
 ipykernel==7.4.0
@@ -72,6 +77,7 @@ MarkupSafe==3.0.4
 matplotlib==3.11.2
 matplotlib-inline==0.2.2
 mistune==3.4.0
+multidict==7.2.1
 narwhals==2.29.0
 nbclient==0.11.0
 nbconvert==7.17.2
@@ -91,8 +97,10 @@ pillow==13.0.0
 platformdirs==4.14.8
 plotly==7.2.0
 pluggy==1.7.0
+postgrest==2.34.1
 prometheus_client==0.26.0
 prompt_toolkit==3.0.53
+propcache==0.5.4
 protobuf==7.36.2
 psutil==7.2.2
 pure_eval==0.2.4
@@ -102,6 +110,7 @@ pydantic==2.14.4
 pydantic_core==2.50.5
 pydeck==0.9.3
 Pygments==2.21.0
+PyJWT==2.15.1
 pyparsing==3.3.3
 pytest==9.2.0
 python-dateutil==4.0.0
@@ -112,6 +121,7 @@ pytz==2026.6
 pywinpty==3.1.2
 PyYAML==6.0.4
 pyzmq==27.3.0
+realtime==2.34.1
 referencing==0.37.0
 requests==2.34.2
 rfc3339-validator==0.1.4
@@ -126,7 +136,11 @@ sniffio==1.3.1
 soupsieve==4.1.3
 stack-data==0.6.3
 starlette==1.10.0
+storage3==2.34.1
 streamlit==1.67.0
+supabase==2.34.1
+supabase-auth==2.34.1
+supabase-functions==2.34.1
 terminado==0.18.1
 threadpoolctl==3.8.0
 tinycss2==1.5.1
@@ -144,6 +158,7 @@ wcwidth==0.9.5
 webcolors==25.10.0
 webencodings==0.6.1
 websocket-client==1.9.2
-websockets==17.4
+websockets==15.0.1
 widgetsnbextension==4.0.16
+yarl==1.25.1
 yfinance==1.8.0

@@ -12,7 +12,7 @@ import pandas as pd  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
 import streamlit as st  # noqa: E402
 
-from src import config  # noqa: E402
+from src import bulut, config  # noqa: E402
 from src.data import cache, dividends  # noqa: E402
 from src.depo import NOT_SINIRI, depo_al  # noqa: E402
 from src.models import deney  # noqa: E402
@@ -29,9 +29,18 @@ YASAL_UYARI = ("Bu uygulama eğitim ve portföy amaçlıdır; **yatırım tavsiy
 # Veri (internete gitmez; veriyi admin tarafı günceller)
 # ---------------------------------------------------------------------------
 
+@st.cache_resource(ttl=3600, show_spinner="Veri buluttan alınıyor…")
+def bulut_verisi() -> str | None:
+    """Streamlit Cloud'da: değişen veri dosyalarını Supabase'den indirir (saatte en fazla bir kez)."""
+    if not bulut.bulutta_mi():
+        return None
+    return bulut.indir()
+
+
 @st.cache_data(ttl=3600, show_spinner="Veri yükleniyor…")
 def piyasa_verisi() -> dict:
-    """Hisseler, endeks, kur ve makro veri (sadece önbellekten)."""
+    """Hisseler, endeks, kur ve makro veri (sadece önbellekten; bulutta önce Supabase'den indirilir)."""
+    bulut_verisi()
     veri, endeks, kur, makro = deney.onbellekten_veri()
     return {"veri": veri, "endeks": endeks, "kur": kur, "makro": makro,
             "son_tarih": max(df.index[-1] for df in veri.values())}
@@ -50,6 +59,7 @@ def temettu_tablosu() -> pd.DataFrame:
 
 @st.cache_data(ttl=3600)
 def onbellek_tablosu(ad: str, klasor: str) -> pd.DataFrame | None:
+    bulut_verisi()
     return cache.oku(ad, klasor)
 
 
