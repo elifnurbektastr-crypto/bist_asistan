@@ -122,7 +122,9 @@ bist_asistan/
 ### 2. ML tahmin modülü
 - **Hedef:** Önümüzdeki 5 işlem gününde getirinin pozitif olup olmayacağı (sınıflandırma). Alternatif: 20 günlük volatilite tahmini (regresyon). Volatilite tahmini genelde daha başarılı olur, ikisi de denenebilir.
 - **Özellikler:** Gecikmeli getiriler, hareketli ortalamalar, RSI, volatilite, hacim değişimi, XU100 getirisi, USD/TRY değişimi
-- **Modeller:** Önce Logistic Regression (baseline), sonra Random Forest / LightGBM
+- **Modeller:** Önce Logistic Regression (baseline), sonra Random Forest / LightGBM. Hiyerarşik yaklaşım: tüm hisselerden ortak model → benzer hisse grupları → hisseye göre ince ayar.
+- **Özellik seçimi:** Piyasa geneli özellikler (endeks, kur, enflasyon, faiz) modeli piyasa zamanlamasına itip 2022 rejim değişiminde ters tahmine yol açtığı için varsayılan setten çıkarıldı (bkz. deney günlüğü, Deney 1-2).
+- **Aşama 2 sonucu (2019-2026, walk-forward):** Yön modeli doğrulukta "hep yükselir" çıtasını (%54,4) geçemedi (%52,3, AUC 0,516). Model en emin olduğu %14'lük dilimde %57,9 isabet sağladı. Volatilite modeli her yıl basit çıtayı geçti (hata %21 daha düşük).
 - **Değerlendirme kuralları (çok önemli):**
   - Zaman serisi olduğu için **rastgele bölme yok**. `TimeSeriesSplit` / walk-forward doğrulama kullanılır.
   - **Look-ahead bias** olmamalı. Hiçbir özellik geleceğe ait bilgi kullanamaz.
@@ -183,7 +185,7 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 
 - [x] **Aşama 0: Kurulum.** Klasör yapısı, `requirements.txt`, `.gitignore`, `.env.example`, git init
 - [x] **Aşama 1: Veri katmanı.** Veri çekme, önbellek ve testler. Keşif notebook'u.
-- [ ] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
+- [x] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
 - [ ] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
 - [ ] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
 - [ ] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)

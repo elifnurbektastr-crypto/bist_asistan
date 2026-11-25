@@ -85,3 +85,45 @@ C: yfinance'in hazır alanları tutarsızdı: FROTO yıllık temettüsü 0 gör�
 
 **S: Bir hata ile gerçek bir piyasa olayını nasıl ayırdın?**
 C: Aynı gün kaç hissenin etkilendiğine baktım. 15 Şubat 2023'te 81 hisse limiti aştı: bu deprem sonrası açılış, yani piyasa geneli bir olay. Tek bir hissede görülen %60-90'lık hareket ise kurumsal işlemdir. Ayrıca BIST'te normal işlemle tek günde %35'lik bir hareket neredeyse imkânsız; en uç gerçek olay olan deprem sonrası açılışta bile hareketler %22 civarında kaldı.
+
+---
+
+## Aşama 2: Özellikler ve ML
+
+### Ne yaptık?
+- **Özellikler (`src/features/indicators.py`):** 14 hisseye özgü özellik (geçmiş getiriler, volatilite, hareketli ortalama uzaklıkları, RSI, TL hacim oranı, gün içi aralık, endekse göre göreli getiri) ve 7 piyasa geneli özellik (endeks, kur, enflasyon, faiz). Hepsi oran cinsinden, böylece farklı fiyattaki hisseler tek modelde birlikte kullanılabiliyor.
+- **Hedefler:** (1) yarının açılışında alıp 5 gün sonraki açılışta satınca TL getirisi pozitif mi? (2) önümüzdeki 20 günün volatilitesi.
+- **Walk-forward (`src/models/train.py`):** 2019-2026 her yıl için ayrı eğitim; purging ile.
+- **Modeller:** 2 baseline, lojistik regresyon, random forest, LightGBM ve hiyerarşik yaklaşım (benzer hisse grupları + hisseye göre ince ayar).
+- **Değerlendirme (`src/models/evaluate.py`):** doğruluk, AUC, log-loss, eşik analizi, en iyi/en kötü %20 getiri farkı, aşırı öğrenme alarmı.
+- **Güncel tahmin (`src/models/predict.py`):** son günün tahmini, sinyal gücü, beklenen volatilite ve modelin o hissedeki geçmiş başarısı.
+- 5 deney `docs/deney-gunlugu.md` dosyasında. Toplam 53 test.
+
+### Neden böyle yaptık?
+- **Hedef yarının açılışından:** Sinyal akşam kapanışta üretiliyor, işlem ancak ertesi sabah yapılabilir. Kapanıştan kapanışa hedef, gerçekte yapılamayacak bir işlemi ölçerdi.
+- **Purging:** 5 günlük hedef 6 gün ileri bakar. Eğitimin son günlerinin etiketleri test yılının fiyatlarını içerir; bu satırlar atılmazsa model sınav sorularını önceden görmüş olur. Bunu doğrulayan bir test var.
+- **Çıta "hep yükselir":** TL'de enflasyon yüzünden hisseler 5 günlük dönemlerin %54'ünde yükseliyor. %52 doğruluk "%50'nin üstü" gibi görünse de aslında hiçbir şey yapmamaktan kötü.
+- **Tek ortak model ve üzerine ince ayar:** Her hisseye ayrı model kurulsa her biri sadece ~2.900 örnekle eğitilirdi. Ortak model 200 bin örnekten genel kalıpları öğreniyor, ince ayar hisseye özgü sapmaları ekliyor.
+- **Korelasyon grupları sadece eğitim verisinden:** Gruplar test dönemi verisiyle hesaplansaydı, geleceğe ait bilgi gruplama yoluyla modele sızardı.
+- **Hiperparametreler sabit:** Test sonuçlarına bakıp ayar yapmak, test kümesini dolaylı yoldan eğitim verisine çevirir.
+
+### Karşılaşılan sorunlar
+1. **İlk sonuç yazı-turadan kötüydü (AUC 0,476).** Özellik önemlerine baktım: en önemli 7 özelliğin 7'si piyasa geneli özellikti (reel faiz, faiz, kur, endeks, enflasyon). Model hangi hissenin iyi olacağını değil, bütün borsanın ne yapacağını tahmin etmeye çalışıyordu. Bunu da eski rejimlerden öğrendiği için 2022'deki %80 enflasyon ortamında tersine döndü (o yıl doğruluk %38). Piyasa geneli özellikleri çıkarınca AUC 0,516'ya yükseldi ve 2022 doğruluğu %56 oldu.
+2. **Hiyerarşik yaklaşım beklenen kazancı getirmedi.** Farklar 0,3 puanın altında kaldı. Bunu saklamak yerine deney günlüğüne yazdım.
+3. **Yön tahmini zayıf, volatilite tahmini güçlü.** Bu finans literatürüyle uyumlu: getirinin yönü neredeyse rastgeledir, ama volatilite kümelenir (oynak dönemler oynak dönemleri izler).
+
+### Olası mülakat soruları
+**S: Modelin doğruluğu %52. Bu başarılı mı?**
+C: Doğruluk olarak hayır; "hep yükselir" tahmini %54,4 yapıyor ve bunu açıkça raporluyorum. Ama iki yerde değer var. Model en emin olduğu %14'lük dilimde %58 isabet ve ortalamanın 0,42 puan üstünde 5 günlük getiri yakalıyor; bunun komisyondan sonra işe yarayıp yaramadığını backtest'te ölçüyorum. Volatilite tahmininde ise model basit yöntemi her yıl geçiyor ve hatayı %21 azaltıyor.
+
+**S: Neden rastgele train/test bölmesi yapmadın?**
+C: Zaman serisinde rastgele bölme, modelin 2023'ü bilerek 2021'i tahmin etmesine izin verir. Gerçekte gelecek bilinmez. Walk-forward her yıl sadece o güne kadarki veriyle eğitiyor. Buna ek olarak hedefin test dönemine taşan eğitim satırlarını da atıyorum (purging).
+
+**S: Veri sızıntısını nasıl kontrol ettin?**
+C: Üç yoldan. Birincisi, testlerden biri gelecekteki fiyatları 5 katına çıkarıp geçmiş özelliklerin değişmediğini doğruluyor. İkincisi, TÜFE'yi açıklandığı tarihten itibaren kullanıyorum. Üçüncüsü, doğruluk %65'i aşarsa alarm veren bir kontrol var. Bir de sağduyu kontrolü: rastgele yürüyüş verisinde model %50 civarında kalmalı, bu da test ediliyor.
+
+**S: Özellik seçimini test sonucuna bakarak yaptın. Bu da bir tür sızıntı değil mi?**
+C: Haklı bir soru, kısmen evet. Bu yüzden kararı sadece sonuca göre değil, mekanizmaya göre verdim: piyasa geneli özelliklerin rejim değişiminde neden bozulduğunu özellik önemleriyle gösterdim. Daha temiz yöntem, 2025-2026'yı hiç dokunulmamış son test olarak ayırmak olurdu. Bunu bir sonraki iyileştirme olarak not ettim.
+
+**S: LightGBM'de ince ayar nasıl çalışıyor?**
+C: Ortak model 300 ağaçla bütün hisselerden eğitiliyor. Sonra her hisse için LightGBM'in `init_model` parametresiyle o modelin üzerine, sadece o hissenin verisiyle ve düşük öğrenme oranıyla 40 ağaç daha ekleniyor. Yani model sıfırdan değil, ortak modelin bıraktığı hatalardan devam ediyor. Bu, derin öğrenmedeki transfer learning fikrinin ağaç modellerindeki karşılığı.
