@@ -136,3 +136,17 @@ def test_tek_indir_aksiyon_sutunu_olmayan_endeksi_kabul_eder(monkeypatch, yf_orn
 
     monkeypatch.setattr(fetch.yf, "Ticker", SahteTicker)
     assert fetch._tek_indir("XU100.IS", "2024-01-01") is not None
+
+
+@pytest.mark.parametrize("yazma, simdi, beklenen", [
+    ("2024-01-11 15:00", "2024-01-11 16:00", True),    # seans sürerken: gün içi önbellek yeterli
+    ("2024-01-11 15:00", "2024-01-11 19:00", False),   # seans kapandı, önbellek kapanıştan önce
+    ("2024-01-11 18:45", "2024-01-11 19:00", True),    # kapanıştan sonra yazılmış
+    ("2024-01-10 20:00", "2024-01-11 08:00", False),   # dünden kalma
+])
+def test_onbellek_tazeligi_seans_kapanisina_gore(tmp_path, monkeypatch, yazma, simdi, beklenen):
+    from src.data import cache, fetch
+    tz = "Europe/Istanbul"
+    monkeypatch.setattr(cache, "guncelleme_tarihi",
+                        lambda *a, **k: pd.Timestamp(yazma, tz=tz).tz_convert("UTC"))
+    assert fetch._bugun_guncellendi_mi("X", simdi=pd.Timestamp(simdi, tz=tz)) == beklenen

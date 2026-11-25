@@ -21,6 +21,7 @@ def sahte_hisse(n: int = 150, tohum: int = 0) -> pd.DataFrame:
     }, index=tarih)
     for s in ["acilis", "yuksek", "dusuk", "kapanis"]:
         df[f"duz_{s}"] = df[s]
+    df["temettu"] = df["temettu_duz"] = df["bolunme"] = 0.0
     return df
 
 

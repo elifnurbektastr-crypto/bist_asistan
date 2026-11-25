@@ -1,0 +1,27 @@
+{
+  "surum": "v1",
+  "model": "lightgbm_ince_ayar",
+  "dosya": "model_v1.joblib",
+  "sha256": "076b38a4f45dd3d156858b672de771375eca44dd28554c41dba55f34ae65d94d",
+  "egitim_son_tarih": "2026-11-16",
+  "egitim_satir": 229392,
+  "hisseye_ozel_model": 81,
+  "ozellikler": [
+    "getiri_1",
+    "getiri_5",
+    "getiri_20",
+    "getiri_60",
+    "volatilite_20",
+    "volatilite_60",
+    "vol_orani",
+    "ma20_uzaklik",
+    "ma50_uzaklik",
+    "ma20_ma50",
+    "rsi_14",
+    "hacim_orani",
+    "gun_ici_aralik",
+    "goreli_getiri_20"
+  ],
+  "guclu_sinyal_esigi": 0.6,
+  "olusturma": "2026-11-25T15:48:49+03:00"
+}

@@ -127,3 +127,37 @@ C: Haklı bir soru, kısmen evet. Bu yüzden kararı sadece sonuca göre değil,
 
 **S: LightGBM'de ince ayar nasıl çalışıyor?**
 C: Ortak model 300 ağaçla bütün hisselerden eğitiliyor. Sonra her hisse için LightGBM'in `init_model` parametresiyle o modelin üzerine, sadece o hissenin verisiyle ve düşük öğrenme oranıyla 40 ağaç daha ekleniyor. Yani model sıfırdan değil, ortak modelin bıraktığı hatalardan devam ediyor. Bu, derin öğrenmedeki transfer learning fikrinin ağaç modellerindeki karşılığı.
+
+---
+
+## Aşama 3a: İleri test (paper trading)
+
+### Ne yaptık?
+- Model bir kez eğitilip **donduruldu** (v1, eğitim sonu 2026-11-16). Model dosyasının parmak izi git'te; dosya değişirse sistem tahmin üretmeyi reddediyor.
+- Her iş günü akşamı BIST 100 için tahmin üretiliyor: yükseliş olasılığı, sinyal (güçlü al / zayıf al / al değil), beklenen 20 günlük volatilite, o günkü kapanış fiyatı.
+- Her günün dosyası SHA-256 ile parmak izi alınıp bir önceki güne **zincirleniyor** ve otomatik olarak git'e commit'leniyor.
+- 5 iş günü dolunca gerçekleşen getiri hesaplanıyor; model isabeti, "hep yükselir" çıtası ve walk-forward beklentisi yan yana raporlanıyor.
+- Korumalı bir Excel raporu üretiliyor; içinde hisse bazında özet ve her hisse için bilgi kartı var.
+- Windows Görev Zamanlayıcı her iş günü 19:00'da çalıştırıyor; 20:30, 22:30 ve ertesi sabah 08:30'da yeniden deniyor.
+
+### Neden böyle yaptık?
+- **Backtest yetmez:** Ne kadar dikkat edilse de backtest'te araştırmacı geçmişi bilir. Bu bilgi özellik seçimine, eşik seçimine ve model seçimine sızar (Aşama 2'de özellik setini test sonuçlarına bakarak değiştirdik). İleri testte gelecek gerçekten bilinmez.
+- **Model dondurma:** Model ileri test sırasında değişseydi, sonuç birkaç modelin karışımını ölçerdi. Parmak izi de modelin gizlice değiştirilmediğini kanıtlıyor.
+- **Parmak izi zinciri:** Excel'in koruması birkaç tıkla kaldırılabilir. Zincirde ise geçmişteki tek bir rakamı değiştirmek o günden sonraki bütün zincir değerlerini bozar. Değiştiren kişi zinciri baştan yeniden hesaplasa bile git geçmişindeki commit'lerle uyuşmaz. Banka denetim kayıtları (audit log) ve blokzincir aynı fikre dayanır.
+- **Süre kuralı (ertesi seans 09:55):** Seans açıldıktan sonra yapılan "dünün tahmini" açılış fiyatını görmüş olabilir. Bu yüzden kaçırılan günler sonradan doldurulmuyor, kayıt dışı kalıyor.
+- **Excel bir görünüm, kayıt değil:** Asıl kayıt CSV dosyaları ve zincir. Excel her gün bunlardan yeniden üretiliyor; Excel'deki bir değişiklik kayda yansımıyor.
+
+### Karşılaşılan sorunlar
+1. **Önbellek zamanlaması:** Önbellek "bugün güncellendiyse tekrar indirme" kuralıyla çalışıyordu. Gün içinde (ör. 15:00) yapılan bir okuma, akşamki görevin o günün kapanışını hiç indirmemesine yol açacaktı. Kural seans kapanışına göre düzeltildi ve testi yazıldı.
+2. **Yahoo kesintileri:** Görev aynı akşam birden çok kez tetikleniyor. Aynı gün tekrar çalıştığında hiçbir şey yapmıyor, böylece ilk deneme başarısız olsa bile sonraki deneme kaydı tamamlıyor. Hisselerin %90'ından azı güncelse ya da endeks gelmediyse tahmin üretmiyor.
+3. **Model boyutu:** 81 hisseye özel model ortak modelin ağaçlarını da içerdiği için dosya 22 MB oldu. Git'e sadece parmak izi giriyor.
+
+### Olası mülakat soruları
+**S: Backtest ile ileri test arasındaki fark ne?**
+C: Backtest geçmiş veride stratejiyi simüle eder; araştırmacı sonucu bildiği için kararlarına bilmeden geçmiş bilgi sızabilir. İleri test modeli dondurup gerçek zamanlı tahmin ettirir. Tahmin yapıldığı anda gelecek bilinmediği için sızıntı imkânsızdır. Kurumsal tarafta bir strateji genellikle backtest ve ardından birkaç ay paper trading'den geçmeden gerçek parayla çalıştırılmaz.
+
+**S: Sonuçları sonradan değiştirmediğini nasıl kanıtlarsın?**
+C: Her günün tahmin dosyasının SHA-256 parmak izi bir önceki günün zincir değeriyle birleştirilip tekrar parmak izi alınıyor ve her gün git'e commit'leniyor. Doğrulama komutu zinciri baştan hesaplıyor. Geçmişte tek bir rakam değişse o gün "değiştirilmiş" olarak işaretleniyor. Zincir baştan yeniden hesaplansa bile git'teki tarihli commit'lerle uyuşmaz. Daha da güçlü bir kanıt için zincirin son değeri herkese açık bir yere (ör. GitHub) itilebilir.
+
+**S: İleri test ne kadar sürmeli?**
+C: İstatistiksel olarak yeterli tamamlanmış tahmin birikmeli. Günde 100 hisse ile bir ayda yaklaşık 2.000 tahmin oluşur. Ama aynı günün tahminleri birbirine bağımlıdır (hepsi aynı piyasa hareketini yaşar), bu yüzden asıl önemli olan gün sayısı. En az 3 ay ve farklı piyasa koşulları görmek gerekir. Sonuç walk-forward beklentisinden (%52,3 isabet, güçlü sinyalde %57,9) belirgin şekilde sapıyorsa bu, modelin piyasa koşulları değiştiği için artık işe yaramadığına (model drift) işaret eder.

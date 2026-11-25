@@ -87,6 +87,11 @@ bist_asistan/
 │   └── admin_app.py        # yönetici sayfası (sadece yerel bilgisayarda)
 ├── referans/
 │   └── bist100.csv         # hisse evreni (kaynak ve tarih referans/README.md'de)
+├── ileri_test/             # ileri test kayıtları (git'te, her gün otomatik commit)
+│   ├── tahminler/          # günlük tahmin dosyaları (YYYY-AA-GG.csv), değiştirilemez
+│   ├── zincir.csv          # SHA-256 parmak izi zinciri
+│   ├── model_surumu.json   # dondurulmuş modelin parmak izi
+│   └── ileri_test.xlsx     # korumalı Excel raporu (kayıtlardan üretilir, git dışında)
 ├── notebooks/
 │   └── 01_kesif.ipynb      # keşifsel veri analizi
 ├── data/                   # parquet önbelleği ve çizim JSON'ları (git'e girmez)
@@ -138,6 +143,15 @@ bist_asistan/
 - **Aşırı öğrenme alarmı:** Doğruluk birden %65'in üstüne çıkarsa bu bir başarı değil, büyük ihtimalle veri sızıntısı veya aşırı öğrenme (overfitting) işaretidir. Böyle bir durumda sonuç kabul edilmeden önce kontrol edilir.
 - **Asıl başarı ölçütü** doğruluk oranı değil, modelin sinyaliyle yapılan stratejinin komisyon dahil al-ve-tut'u geçip geçmediğidir.
 
+### 2b. İleri test (paper trading)
+Backtest geçmişe bakar; ileri test ise modeli **gerçek zamanlı** sınar: tahmin yapıldığı anda gelecek gerçekten bilinmez.
+- Her iş günü akşamı (Windows Görev Zamanlayıcı, 19:00 + yeniden denemeler) BIST 100 için tahmin üretilir.
+- **Dondurulmuş model:** İleri test boyunca model değişmez; parmak izi git'te, dosya değişirse tahmin üretilmez.
+- **Değiştirilemezlik:** Günlük tahmin dosyaları SHA-256 parmak iziyle birbirine zincirlenir ve git'e commit'lenir. Tek bir sayı değişse `python -m src.ileri_test.gunluk --dogrula` hangi günde olduğunu söyler.
+- **Süre kuralı:** Bir günün tahmini en geç ertesi seans açılışına (09:55) kadar yapılabilir; kaçırılan günler sonradan doldurulmaz.
+- **Sonuçlar:** 5 iş günü dolunca gerçekleşen getiri hesaplanır ve walk-forward beklentisiyle karşılaştırılır.
+- **Excel (`ileri_test/ileri_test.xlsx`, korumalı):** Özet · Tahminler · Hisse Özeti · Hisse Bilgileri · Günlük · Bütünlük.
+
 ### 3. Backtest motoru
 - `pandas` ile **kendimiz yazıyoruz** (hazır kütüphane yerine). Böylece mülakatta her satırı açıklayabiliriz.
 - **Stratejiler:** Al-ve-tut (karşılaştırma ölçütü), MA kesişimi, RSI, ML model sinyali
@@ -186,6 +200,7 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 - [x] **Aşama 0: Kurulum.** Klasör yapısı, `requirements.txt`, `.gitignore`, `.env.example`, git init
 - [x] **Aşama 1: Veri katmanı.** Veri çekme, önbellek ve testler. Keşif notebook'u.
 - [x] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
+- [x] **Aşama 3a: İleri test.** Dondurulmuş model, günlük tahmin, parmak izi zinciri, korumalı Excel, Görev Zamanlayıcı
 - [ ] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
 - [ ] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
 - [ ] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)

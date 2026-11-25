@@ -24,3 +24,6 @@ data/*
 .idea/
 Thumbs.db
 .DS_Store
+
+# İleri test Excel raporu (kayıtlardan yeniden üretilir; asıl kayıt CSV + zincir)
+ileri_test/*.xlsx

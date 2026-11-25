@@ -216,12 +216,23 @@ def _indir(semboller: list[str], baslangic: str) -> dict[str, pd.DataFrame]:
     return sonuc
 
 
-def _bugun_guncellendi_mi(ad: str, klasor: str = FIYAT_KLASORU, dizin: Path | None = None) -> bool:
-    """Önbellek dosyası bugün (İstanbul saatiyle) yazıldıysa True."""
+def _bugun_guncellendi_mi(ad: str, klasor: str = FIYAT_KLASORU, dizin: Path | None = None,
+                          simdi: pd.Timestamp | None = None) -> bool:
+    """Önbellek bugünün verisini içeriyor sayılabilir mi?
+
+    Seans kapanmadan önce: bugün yazıldıysa yeterli (yeni kesin veri yok).
+    Seans kapandıktan sonra: ancak kapanıştan SONRA yazıldıysa yeterli; yoksa gün içinde
+    yazılmış önbellek bugünün kapanışını kaçırır.
+    """
     zaman = cache.guncelleme_tarihi(ad, klasor, dizin)
     if zaman is None:
         return False
-    return zaman.tz_convert(config.SAAT_DILIMI).date() == pd.Timestamp.now(tz=config.SAAT_DILIMI).date()
+    simdi = simdi or pd.Timestamp.now(tz=config.SAAT_DILIMI)
+    zaman = zaman.tz_convert(config.SAAT_DILIMI)
+    if zaman.date() != simdi.date():
+        return False
+    kapanis = pd.Timestamp(f"{simdi.date()} {config.SEANS_KAPANIS_SAATI}", tz=config.SAAT_DILIMI)
+    return simdi < kapanis or zaman >= kapanis
 
 
 def fiyat_verisi(semboller: list[str], baslangic: str = config.BASLANGIC_TARIHI,

@@ -94,26 +94,43 @@ def _lightgbm_grup(egitim, test, hedef):
     return tahmin
 
 
-def _lightgbm_ince_ayar(egitim, test, hedef, ek_agac: int = 40):
-    """3. basamak: ortak modeli her hissenin kendi verisiyle birkaç ağaç daha eğitir.
+def ince_ayar_modelleri(egitim: pd.DataFrame, hedef: str, kodlar=None, ek_agac: int = 40):
+    """3. basamak modellerini eğitir: (ortak model, {kod: hisseye özel model}).
 
     LightGBM 'init_model' ile kaldığı yerden devam eder: ortak model piyasanın genel
     davranışını öğrenmiştir, ek ağaçlar hisseye özgü sapmaları düzeltir.
+    Geçmişi ~3 yıldan kısa hisselere ince ayar yapılmaz, ortak model kullanılır.
     """
     ortak = _lgbm_egit(egitim, hedef)
-    tahmin = ortak.predict_proba(test[OZELLIKLER])[:, 1]
     kod_egitim = egitim.index.get_level_values("kod")
-    kod_test = test.index.get_level_values("kod")
-    for kod in kod_test.unique():
+    ozel = {}
+    for kod in (kodlar if kodlar is not None else kod_egitim.unique()):
         e = egitim[kod_egitim == kod]
-        if len(e) < 750:   # ~3 yıldan az geçmiş: ince ayar yapma
+        if len(e) < 750:
             continue
         model = lgb.LGBMClassifier(**{**LGBM_AYARLARI, "n_estimators": ek_agac,
                                       "learning_rate": 0.01, "min_child_samples": 100})
         model.fit(e[OZELLIKLER], e[hedef], init_model=ortak.booster_)
-        t = np.asarray(kod_test == kod)
-        tahmin[t] = model.predict_proba(test.loc[t, OZELLIKLER])[:, 1]
+        ozel[kod] = model
+    return ortak, ozel
+
+
+def ince_ayar_tahmin(ortak, ozel: dict, veri: pd.DataFrame) -> np.ndarray:
+    """Hisseye özel modeli olanlara onu, olmayanlara ortak modeli uygular."""
+    tahmin = ortak.predict_proba(veri[OZELLIKLER])[:, 1]
+    kodlar = veri.index.get_level_values("kod")
+    for kod, model in ozel.items():
+        t = np.asarray(kodlar == kod)
+        if t.any():
+            tahmin[t] = model.predict_proba(veri.loc[t, OZELLIKLER])[:, 1]
     return tahmin
+
+
+def _lightgbm_ince_ayar(egitim, test, hedef):
+    """3. basamak: ortak model + hisseye göre ince ayar (walk-forward arayüzü)."""
+    kodlar = test.index.get_level_values("kod").unique()
+    ortak, ozel = ince_ayar_modelleri(egitim, hedef, kodlar)
+    return ince_ayar_tahmin(ortak, ozel, test)
 
 
 MODELLER = {
