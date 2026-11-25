@@ -60,6 +60,7 @@ bist_asistan/
 ├── .gitignore
 ├── src/
 │   ├── config.py           # hisse listesi, tarih aralıkları, komisyon oranı
+│   ├── depo.py             # duyurular ve geri bildirimler (SQLite → yayında Supabase)
 │   ├── data/
 │   │   ├── fetch.py        # yfinance + EVDS veri çekme, ham/düzeltilmiş fiyat
 │   │   ├── cache.py        # parquet ile yerel önbellek
@@ -84,6 +85,8 @@ bist_asistan/
 │       └── agent.py        # LLM ajan döngüsü
 ├── app/
 │   ├── streamlit_app.py    # kullanıcı arayüzü (internette)
+│   ├── ortak.py            # veri yükleme, grafik teması, duyuru, geri bildirim
+│   ├── sekmeler/           # analiz.py, temettu.py, backtest.py, model.py
 │   └── admin_app.py        # yönetici sayfası (sadece yerel bilgisayarda)
 ├── referans/
 │   └── bist100.csv         # hisse evreni (kaynak ve tarih referans/README.md'de)
@@ -190,7 +193,9 @@ Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra 
 
 ### 6. Streamlit arayüzü
 - **Sekmeler:** Sohbet · Grafik (çizim araçlı) · Hisse Analizi · Temettü · Backtest (strateji seçimi ve sermaye eğrisi) · Model Performansı
-- Kullanıcılar kısa geri bildirim bırakabilir (👍/👎 ve kısa not), yöneticinin duyuruları görünür.
+- Kullanıcılar kısa geri bildirim bırakabilir (👍/👎 ve en fazla 200 karakter not), yöneticinin duyuruları sayfanın üstünde görünür.
+- **Güncel model sinyalleri herkese açık sayfada gösterilmez** (yatırım tavsiyesi algısı / SPK düzenlemesi); sadece modelin geçmiş ve ileri test performansı gösterilir. Güncel tahminler yalnızca yerel admin sayfasında.
+- Uygulama internete gitmez: veriyi yerel taraf günceller, uygulama önbellekten okur (Yahoo bulut sunucularını daha sık engelliyor).
 - Streamlit Community Cloud'a ücretsiz deploy edilir ve README'ye demo linki eklenir.
 
 ### 7. Yönetici (admin) sayfası
@@ -209,7 +214,7 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 - [x] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
 - [x] **Aşama 3a: İleri test.** Dondurulmuş model, günlük tahmin, parmak izi zinciri, korumalı Excel, Görev Zamanlayıcı
 - [x] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
-- [ ] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
+- [x] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
 - [ ] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
 - [ ] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
 - [ ] **Aşama 5: LLM ajanı.** Araçlar, ajan döngüsü, Sohbet sekmesi

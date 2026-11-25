@@ -207,3 +207,26 @@ C: Çünkü risksiz faiz olarak %36-50 seviyesindeki politika faizini kullanıyo
 
 **S: Bundan sonra ne denerdin?**
 C: Modeli doğrudan gün içi sıralama için eğitmek (hedef: o gün hisselerin ortancasını geçer mi). Değerlendirmeyi portföyün yaptığı işe uygun metrikle (günlük sıralama korelasyonu) yapmak. Devir hızını düşürmek (ör. sadece sinyal belirgin değiştiğinde işlem yapmak). Ve volatilite modelini risk yönetiminde kullanmak.
+
+---
+
+## Aşama 4: Streamlit arayüzü
+
+### Ne yaptık?
+- **Sekmeler:** Hisse Analizi (fiyat, TL/USD/XU100 getirisi, volatilite, maks. düşüş, RSI), Temettü (filtreler, en yüksek verimliler grafiği, hisse bazında ödeme geçmişi ve "elimdeki adet için ne kadar"), Backtest (tek hisse için canlı strateji karşılaştırması, TL/USD, maliyet ve nakit faizi ayarı; model portföyü sonuçları), Model Performansı (walk-forward, ileri test, deney günlüğü). Sohbet ve Grafik sekmeleri Aşama 5 ve 4b'de dolacak.
+- **Duyurular ve geri bildirim:** Her sekmenin altında 👍/👎 ve en fazla 200 karakter not. Duyurular ve geri bildirimler `src/depo.py` arayüzü üzerinden SQLite'a yazılıyor; yayında aynı arayüzle Supabase'e geçilecek.
+- **Testler:** Depo testleri (SQL enjeksiyonu dahil) ve Streamlit `AppTest` ile tüm uygulamanın hatasız açıldığını doğrulayan duman testi.
+
+### Neden böyle yaptık?
+- **Güncel sinyalleri herkese açık göstermemek:** Türkiye'de lisanssız yatırım danışmanlığı SPK düzenlemesine tabi; "güçlü al" gibi bir ifade tavsiye olarak algılanabilir. Ayrıca backtest modelin avantajı olmadığını gösterdi; bunu bilip sinyali kullanıcıya sunmak sorumsuzluk olurdu. Kullanıcı sayfası modelin başarısını ve başarısızlığını şeffafça gösteriyor.
+- **Uygulama internetten veri çekmiyor:** Yahoo bizi kendi bilgisayarımızdan bile sık sık engelledi; bulut sunucularından daha da kötü olur. Veriyi yerel taraf güncelliyor, uygulama sadece okuyor. Bu, okuma ve yazma işlerini ayırmak gibi yaygın bir mimari kalıp.
+- **Depo arayüzü:** Şimdi hesap açmadan SQLite ile geliştirip, yayına alırken tek bir sınıfı değiştirerek Supabase'e geçebiliyoruz (adaptör kalıbı).
+- **`st.cache_data`:** Veri ve ağır hesaplar bir saat önbellekte tutuluyor; her tıklamada 100 dosyayı yeniden okumak gerekmiyor.
+- **Dürüst özet kutuları:** Model ve portföy sekmelerinde sonuçların olumsuz olduğu en üstte açıkça yazıyor.
+
+### Olası mülakat soruları
+**S: Neden modelin sinyallerini kullanıcıya göstermiyorsun? O zaman model ne işe yarıyor?**
+C: İki sebep var: hukuki (SPK'nın yatırım danışmanlığı düzenlemesi) ve etik (backtest modelin avantajı olmadığını gösterdi). Model araştırma ve ileri test için var; kullanıcıya modelin gerçek performansını gösteriyorum. Ürün kararlarında "teknik olarak yapabilmek" ile "yapmak doğru mu" ayrı sorular.
+
+**S: Kullanıcı geri bildirimini kötüye kullanılmaya karşı nasıl koruyorsun?**
+C: Not 200 karakterle sınırlı, puan sadece +1/-1 olabiliyor (veritabanında CHECK kısıtı), sorgular parametreli (SQL enjeksiyonuna karşı test var) ve her oturumda sekme başına bir geri bildirim alınıyor. Yayında Supabase'in satır düzeyi güvenliği (RLS) ile kullanıcılar sadece ekleme yapabilecek, okuma yapamayacak.

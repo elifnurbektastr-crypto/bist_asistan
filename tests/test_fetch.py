@@ -150,3 +150,11 @@ def test_onbellek_tazeligi_seans_kapanisina_gore(tmp_path, monkeypatch, yazma, s
     monkeypatch.setattr(cache, "guncelleme_tarihi",
                         lambda *a, **k: pd.Timestamp(yazma, tz=tz).tz_convert("UTC"))
     assert fetch._bugun_guncellendi_mi("X", simdi=pd.Timestamp(simdi, tz=tz)) == beklenen
+
+
+def test_cevrimdisi_internete_gitmez(tmp_path, monkeypatch, yf_ornek):
+    from src.data import cache, fetch
+    cache.yaz(standartlastir(yf_ornek), "AAA.IS", dizin=tmp_path)
+    monkeypatch.setattr(fetch, "_indir", lambda *a, **k: pytest.fail("internete gidilmemeli"))
+    veri = fetch.fiyat_verisi(["AAA", "YOK"], dizin=tmp_path, cevrimdisi=True)
+    assert list(veri) == ["AAA.IS"]

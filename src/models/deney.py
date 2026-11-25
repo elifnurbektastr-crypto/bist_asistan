@@ -9,7 +9,6 @@ Tahminler data/model/tahminler.parquet dosyasına yazılır (backtest de bunu ku
 import argparse
 import logging
 import time
-from unittest.mock import patch
 
 import pandas as pd
 
@@ -24,8 +23,7 @@ MIN_GECMIS_YIL = 5
 def onbellekten_veri() -> tuple[dict, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Önbellekteki veriyi internete gitmeden okur (temizlik + elle düzeltmeler dahil)."""
     semboller = [config.yf_sembol(h) for h in config.hisse_evreni()] + [config.ENDEKS, config.USDTRY]
-    with patch.object(fetch, "_indir", lambda s, b: {}):
-        veri = fetch.fiyat_verisi(semboller)
+    veri = fetch.fiyat_verisi(semboller, cevrimdisi=True)
     endeks, kur = veri.pop(config.ENDEKS), veri.pop(config.USDTRY, None)
     return veri, endeks, kur, cache.oku("evds", "makro")
 

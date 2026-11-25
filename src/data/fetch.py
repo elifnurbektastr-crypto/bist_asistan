@@ -236,13 +236,19 @@ def _bugun_guncellendi_mi(ad: str, klasor: str = FIYAT_KLASORU, dizin: Path | No
 
 
 def fiyat_verisi(semboller: list[str], baslangic: str = config.BASLANGIC_TARIHI,
-                 yenile: bool = False, dizin: Path | None = None) -> dict[str, pd.DataFrame]:
+                 yenile: bool = False, dizin: Path | None = None,
+                 cevrimdisi: bool = False) -> dict[str, pd.DataFrame]:
     """Sembollerin standart fiyat tablolarını döner (önbellek + artımlı güncelleme).
 
     semboller: yfinance sembolleri ya da BIST kodları (THYAO veya THYAO.IS)
     yenile: True ise önbellek yok sayılır, tüm geçmiş yeniden indirilir.
+    cevrimdisi: True ise internete hiç gidilmez, sadece önbellek okunur (uygulama, notebook).
     """
     semboller = [config.yf_sembol(s) for s in semboller]
+    if cevrimdisi:
+        sonuc = {s: df for s in semboller if (df := cache.oku(s, FIYAT_KLASORU, dizin)) is not None}
+        return {s: elle_duzeltmeleri_uygula(tatil_satirlarini_at(df), elle_duzeltmeler(s))
+                for s, df in sonuc.items()}
     sonuc: dict[str, pd.DataFrame] = {}
     artimli: dict[str, pd.DataFrame] = {}
     tam: list[str] = []
