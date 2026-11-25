@@ -230,3 +230,26 @@ C: İki sebep var: hukuki (SPK'nın yatırım danışmanlığı düzenlemesi) ve
 
 **S: Kullanıcı geri bildirimini kötüye kullanılmaya karşı nasıl koruyorsun?**
 C: Not 200 karakterle sınırlı, puan sadece +1/-1 olabiliyor (veritabanında CHECK kısıtı), sorgular parametreli (SQL enjeksiyonuna karşı test var) ve her oturumda sekme başına bir geri bildirim alınıyor. Yayında Supabase'in satır düzeyi güvenliği (RLS) ile kullanıcılar sadece ekleme yapabilecek, okuma yapamayacak.
+
+---
+
+## Aşama 4a: Admin sayfası
+
+### Ne yaptık?
+- Sadece yerel bilgisayarda çalışan bir yönetici sayfası: durum paneli, duyuru yayınlama/kapatma, geri bildirimleri okuma, güncel model tahminleri, elle veri girişi (sermaye artırımı düzeltmeleri ve hisse listesi), veri işlemleri (güncelleme, doğrulama, Excel, backtest raporu, yaklaşan temettüler).
+- Arayüz ince tutuldu; doğrulama, kaydetme ve komut çalıştırma mantığı `src/yonetim.py` içinde ve test ediliyor.
+
+### Neden böyle yaptık?
+- **Şifre yerine ağ izolasyonu:** Kullanıcı şifre istemedi. Şifre olmadan güvenli olmanın yolu, sayfayı ağa hiç açmamak: sadece `127.0.0.1` dinleniyor (işletim sistemi düzeyinde doğrulandı) ve başlatma betiğinin koyduğu ortam değişkeni yoksa sayfa kendini kapatıyor. Kod bir gün yanlışlıkla yayına alınsa bile admin işlevleri çalışmaz (derinlemesine savunma).
+- **Elle veriye doğrulama ve git kaydı:** Elle girilen veri en kolay bozulan veridir. Kaydetmeden önce kod listede mi, tarih işlem günü mü, oran pozitif mi, tekrar var mı kontrol ediliyor; kayıt git'e commit'leniyor, böylece her değişikliğin ne zaman yapıldığı ve geri alınabilmesi sağlanıyor.
+- **Komut beyaz listesi:** Admin sayfası sadece önceden tanımlı komutları çalıştırabiliyor; serbest komut girişi yok.
+
+### Karşılaşılan sorunlar
+- Geliştirme sırasında açtığım kullanıcı uygulaması tüm ağ arayüzlerini dinliyordu (aynı Wi-Fi'deki cihazlar erişebiliyordu). Port dinleme kontrolünde fark edip yerel adrese bağladım ve başlatma betiklerine bunu sabitledim.
+
+### Olası mülakat soruları
+**S: Şifresiz admin paneli güvenlik açığı değil mi?**
+C: Panel ağa açık olsaydı öyle olurdu. Burada panel sadece loopback (127.0.0.1) adresini dinliyor, yani sadece aynı bilgisayardaki kullanıcı erişebilir. Bunu işletim sisteminin dinlenen portlar listesinden doğruladım. Ayrıca kod düzeyinde ikinci bir kontrol var. Bilgisayarın kendisi zaten Windows oturumuyla korunuyor. Panel ileride uzaktan erişilebilir olacaksa şifre ve rol tabanlı yetkilendirme şart olur.
+
+**S: Admin ile kullanıcı uygulaması verilerini nasıl paylaşıyor?**
+C: Duyurular ve geri bildirimler ortak bir depo arayüzü üzerinden yazılıp okunuyor. Şimdi yerel SQLite, yayında Supabase (PostgreSQL). Fiyat verisini ise sadece yerel taraf günceller; kullanıcı uygulaması okur.

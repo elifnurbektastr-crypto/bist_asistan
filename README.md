@@ -61,6 +61,7 @@ bist_asistan/
 ├── src/
 │   ├── config.py           # hisse listesi, tarih aralıkları, komisyon oranı
 │   ├── depo.py             # duyurular ve geri bildirimler (SQLite → yayında Supabase)
+│   ├── yonetim.py          # admin işleri: elle veri doğrulama/kaydetme, git kaydı, komutlar
 │   ├── data/
 │   │   ├── fetch.py        # yfinance + EVDS veri çekme, ham/düzeltilmiş fiyat
 │   │   ├── cache.py        # parquet ile yerel önbellek
@@ -199,9 +200,10 @@ Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra 
 - Streamlit Community Cloud'a ücretsiz deploy edilir ve README'ye demo linki eklenir.
 
 ### 7. Yönetici (admin) sayfası
-- **Sadece yerel bilgisayarda çalışır, internete açılmaz**; bu yüzden şifre gerekmez.
-- Elle veri girişi/düzeltme, duyuru yayınlama, kullanıcı geri bildirimlerini okuma, veri güncelleme ve kalite raporu.
-- Kullanıcı sayfası ile ortak veri deposu (duyurular ve geri bildirimler için) Aşama 4'te seçilecek.
+- **Sadece yerel bilgisayarda çalışır, internete açılmaz**; bu yüzden şifre gerekmez. İki katmanlı koruma: sadece `127.0.0.1:8502` adresini dinler ve başlatma betiğinin koyduğu ortam değişkeni yoksa hiçbir şey göstermez.
+- Başlatma: `powershell -ExecutionPolicy Bypass -File admin_baslat.ps1`
+- **Sayfalar:** Durum (veri tarihi, ileri test kayıtları, zincir bütünlüğü, veri kalitesi, görev günlüğü) · Duyurular (yayınla/kapat, bitiş tarihi) · Geri bildirimler · Güncel tahminler (sadece burada) · Elle veri girişi (sermaye artırımı düzeltmeleri, hisse listesi; doğrulama + otomatik git kaydı) · Veri işlemleri (güncelleme, doğrulama, Excel, backtest raporu, yaklaşan temettüler).
+- Duyurular ve geri bildirimler kullanıcı sayfasıyla aynı depoyu (`src/depo.py`) kullanır.
 
 ---
 
@@ -215,7 +217,7 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 - [x] **Aşama 3a: İleri test.** Dondurulmuş model, günlük tahmin, parmak izi zinciri, korumalı Excel, Görev Zamanlayıcı
 - [x] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
 - [x] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
-- [ ] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
+- [x] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
 - [ ] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
 - [ ] **Aşama 5: LLM ajanı.** Araçlar, ajan döngüsü, Sohbet sekmesi
 - [ ] **Aşama 6: Cila.** README'ye ekran görüntüleri ve sonuç tabloları, deploy, `docs/mulakat-notlari.md`
@@ -247,6 +249,8 @@ pip install -r requirements.txt
 copy .env.example .env        # sonra .env içine kendi anahtarlarını yaz
 streamlit run app/streamlit_app.py
 ```
+
+Windows'ta yerel başlatma betikleri: `uygulama_baslat.ps1` (kullanıcı sayfası, 8501) ve `admin_baslat.ps1` (admin, 8502).
 
 **.env değişkenleri:**
 ```
