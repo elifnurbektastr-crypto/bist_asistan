@@ -41,3 +41,17 @@ def test_admin_tum_sayfalar_hatasiz(monkeypatch):
     for sayfa in at.sidebar.radio[0].options:
         at.sidebar.radio[0].set_value(sayfa).run()
         assert not at.exception, (sayfa, [e.value for e in at.exception])
+
+
+@pytest.mark.yavas
+@pytest.mark.skipif(not (config.VERI_DIZINI / "fiyat" / "THYAO.IS.parquet").exists(),
+                    reason="önbellekte veri yok")
+def test_her_hisse_tum_sekmelerde_hatasiz():
+    """Hisse seçen her kutuya listedeki HER hisse verilir (kısa geçmişli yeni halka arzlar dahil)."""
+    at = AppTest.from_file(str(config.KOK_DIZIN / "app" / "streamlit_app.py"), default_timeout=300)
+    at.run()
+    kodlar = at.selectbox(key="analiz_kod").options
+    for kutu in ["grafik_kod", "analiz_kod", "temettu_kod", "bt_kod"]:
+        for kod in kodlar:
+            at.selectbox(key=kutu).set_value(kod).run()
+            assert not at.exception, (kutu, kod, [e.value for e in at.exception])

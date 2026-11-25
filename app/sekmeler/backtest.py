@@ -30,8 +30,11 @@ def _tek_hisse() -> None:
     para = c3.radio("Para birimi", ["TL", "USD"], horizontal=True, key="bt_para")
     df = p["veri"][config.yf_sembol(kod)]
     c4, c5, c6 = st.columns([2, 1, 1])
-    tarih = c4.date_input("Dönem", (pd.Timestamp("2019-01-01").date(), df.index[-1].date()),
-                          min_value=df.index[0].date(), max_value=df.index[-1].date(), key="bt_tarih")
+    # Varsayılan başlangıç 2019 (ML tahminlerinin başladığı yıl), ama hisse daha sonra halka arz
+    # olduysa ilk işlem günü. Tarih kutusu hisse başına ayrı tutulur (önceki hissenin tarihi taşmasın).
+    ilk, son = df.index[0].date(), df.index[-1].date()
+    varsayilan = max(pd.Timestamp("2019-01-01").date(), ilk)
+    tarih = c4.date_input("Dönem", (varsayilan, son), min_value=ilk, max_value=son, key=f"bt_tarih_{kod}")
     maliyet = c5.number_input("İşlem başı maliyet (%)", 0.0, 1.0, config.ISLEM_MALIYETI * 100, 0.05,
                               help="Komisyon %0,10 + kayma %0,05") / 100
     nakit = c6.checkbox("Nakit faiz kazansın", True, help="Piyasa dışındaki para politika faizi kadar getiri sağlar")

@@ -91,6 +91,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   const durumYazi = document.getElementById("durum");
   const ipucu = document.getElementById("ipucu");
   let kod = null, mod = "pan", dinleyicilerHazir = false, ciziliyor = false, gizliCizimler = [];
+  let bekleyenArgs = null;   // sekme gizliyken gelen çizim isteği (görünür olunca çizilir)
 
   const IPUCLARI = {
     pan: "Grafiği sürükleyerek kaydırın, fare tekerleğiyle yakınlaştırın. Bir çizime tıklayarak seçebilir ve sürükleyebilirsiniz.",
@@ -165,6 +166,14 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   }
 
   function ciz(args) {
+    // Streamlit sekmesi gizliyken genişlik 0'dır; Plotly bu durumda yazı genişliklerini 0 ölçer ve
+    // açıklama/etiketler üst üste biner. Görünür olana kadar çizimi ertele.
+    if (div.clientWidth === 0) {
+      bekleyenArgs = args;
+      gonder("streamlit:setFrameHeight", { height: ((args.sekil && args.sekil.layout && args.sekil.layout.height) || 600) + 120 });
+      return;
+    }
+    bekleyenArgs = null;
     const yeniKod = String(args.kod || "").toUpperCase();
     const sekil = args.sekil || { data: [], layout: {} };
     const layout = Object.assign({}, sekil.layout);
@@ -173,6 +182,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     layout.shapes = ayrim.goster;
     layout.dragmode = mod === "yatay" ? "pan" : mod;
     layout.autosize = true;
+    if (div.clientWidth > 0) layout.width = div.clientWidth;
     div.style.height = (layout.height || 600) + "px";
     kod = yeniKod;
     ciziliyor = true;
@@ -233,6 +243,17 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     if (olay.data && olay.data.type === "streamlit:render") ciz(olay.data.args || {});
   });
   window.addEventListener("resize", yukseklikBildir);
+  // Streamlit sekmesi gizliyken grafik sıfır genişlikte çizilir; görünür olunca (ya da pencere
+  // boyutu değişince) açıklama ve etiketler dahil yeniden yerleştir.
+  let sonGenislik = 0;
+  new ResizeObserver(() => {
+    const genislik = div.clientWidth;
+    if (genislik > 0 && bekleyenArgs) { sonGenislik = genislik; ciz(bekleyenArgs); return; }
+    if (genislik > 0 && genislik !== sonGenislik && div.data) {
+      sonGenislik = genislik;
+      Plotly.relayout(div, { width: genislik }).then(yukseklikBildir);
+    }
+  }).observe(document.body);
   ipucu.textContent = IPUCLARI.pan;
   gonder("streamlit:componentReady", { apiVersion: 1 });
 }

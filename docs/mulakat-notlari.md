@@ -274,6 +274,7 @@ C: Duyurular ve geri bildirimler ortak bir depo arayüzü üzerinden yazılıp o
 ### Karşılaşılan sorunlar
 - Python testleri bileşenin tarayıcıda çalıştığını gösteremiyordu. Bilgisayardaki Edge'i ekransız modda DevTools protokolüyle süren küçük bir Node betiği yazıp ekran görüntüsü aldım ve tarayıcıdaki JavaScript hatalarını topladım. Görüntüde sağdaki fiyat etiketlerinin kesildiğini, alt tarih etiketlerinin taştığını, ay adlarının İngilizce olduğunu ve açıklama sırasının ters olduğunu gördüm ve düzelttim (Plotly'ye Türkçe yerel ayar tanımladım).
 - `from app.bilesenler import grafik` satırı modülü değil aynı adlı fonksiyonu içe aktarıyordu; uygulamanın duman testi bunu yakaladı.
+- **Kullanıcı testinde çıkan iki hata:** (1) Backtest'te varsayılan başlangıç 2019 idi; 2019'dan sonra halka arz olan hisselerde bu tarih verinin başlangıcından önceye düşüp hata veriyordu. Testlerim sadece varsayılan hisseyi (THYAO) denediği için kaçmıştı. Düzeltip **100 hissenin her birini her sekmede** deneyen kapsamlı bir test ekledim. (2) Grafik ikinci sekmede olduğu için ilk çizim sırasında görünmüyordu; Plotly gizli bir alanda yazı genişliklerini 0 ölçtüğünden açıklama ve etiketler üst üste biniyordu. Çözüm: bileşen görünür olana kadar çizimi erteliyor (ResizeObserver). Ders: birim testleri geçse de gerçek tarayıcıda, gerçek kullanım sırasıyla (önce başka sekme, sonra grafik) denemek gerekiyor.
 
 ### Olası mülakat soruları
 **S: Neden hazır bir grafik kütüphanesi (ör. bir trading platformunun grafiği) kullanmadın?**
