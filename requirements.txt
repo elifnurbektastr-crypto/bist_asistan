@@ -16,8 +16,6 @@ plotly>=5.20
 matplotlib>=3.8      # notebook grafikleri (statik)
 streamlit>=1.35
 
-# --- LLM ajanı ---
-anthropic>=0.40
 
 # --- Geliştirme ---
 pytest>=8.0

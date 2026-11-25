@@ -1,7 +1,6 @@
-# pip freeze çıktısı — Aşama 1'de çalışan birebir sürümler (Python 3.12.8)
+# pip freeze çıktısı — Aşama 5 sonrası birebir sürümler (Python 3.12.8)
 altair==6.3.0
 annotated-types==0.8.0
-anthropic==2.14.0
 anyio==4.16.0
 argon2-cffi==25.1.0
 argon2-cffi-bindings==26.2.0

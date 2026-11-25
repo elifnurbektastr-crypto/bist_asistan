@@ -22,7 +22,7 @@ HISSE_OZELLIKLERI = [
 ]
 # Piyasa geneli özellikler: aynı gün tüm hisselerde aynı değer. Deney 1-2'de modeli
 # "piyasa zamanlamasına" itti ve rejim değişiminde (2022) ters tahmin ürettiği için
-# varsayılan setten çıkarıldı. Hesaplanmaya devam ediyor (deneylerde ve ajanda kullanılabilir).
+# varsayılan setten çıkarıldı. Hesaplanmaya devam ediyor (deneylerde kullanılabilir).
 PIYASA_OZELLIKLERI = [
     "endeks_getiri_5", "endeks_getiri_20", "kur_getiri_5", "kur_getiri_20",
     "yillik_enflasyon", "politika_faizi", "reel_faiz",

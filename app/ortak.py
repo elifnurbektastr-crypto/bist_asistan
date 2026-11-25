@@ -140,7 +140,7 @@ def kenar_cubugu() -> None:
     p = piyasa_verisi()
     with st.sidebar:
         st.markdown("### 📈 BIST Araştırma Asistanı")
-        st.caption("Veri analizi · makine öğrenmesi · backtest · LLM ajanı")
+        st.caption("Veri analizi · makine öğrenmesi · backtest · grafik aracı")
         st.markdown(f"**Son veri:** {p['son_tarih']:%d.%m.%Y}  \n**Hisse:** {len(p['veri'])} (BIST 100)")
         st.caption("Kaynaklar: Yahoo Finance (gecikmeli), TCMB EVDS")
         st.warning(YASAL_UYARI, icon="⚠️")

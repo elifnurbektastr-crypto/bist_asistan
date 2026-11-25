@@ -1,12 +1,13 @@
 # 📈 BIST Yatırım Araştırma Asistanı
 
-BIST hisseleri için **veri analizi**, **makine öğrenmesi tahmini**, **strateji backtest'i** ve **LLM ajanını** tek bir uygulamada birleştiren bir araştırma asistanı.
+BIST hisseleri için **veri analizi**, **makine öğrenmesi tahmini**, **strateji backtest'i**, **temettü analizi** ve **ücretsiz bir grafik/çizim aracını** tek bir uygulamada birleştiren bir araştırma asistanı.
 
-Kullanıcı sohbet ekranına doğal dilde soru yazar, AI ajanı gerekli araçları kendisi çalıştırır ve sonucu Türkçe açıklar:
+Kullanıcı bir hisse seçer ve şu sorulara cevap bulur:
 
-> 💬 *"THYAO için son 1 yılda 20/50 hareketli ortalama stratejisi al-ve-tut'u geçer miydi?"*
-> 💬 *"ASELS'in volatilitesi son 3 ayda nasıl değişti, USD/TRY ile ilişkisi var mı?"*
-> 💬 *"Modelin bu hafta GARAN için tahmini ne ve bu tahmine ne kadar güvenebilirim?"*
+> 🔎 *"ASELS son 1 yılda TL'de ve dolarda ne kadar kazandırdı, ne kadar oynaktı?"*
+> 🧪 *"THYAO'da 20/50 hareketli ortalama stratejisi al-ve-tut'u geçer miydi (komisyon dahil)?"*
+> 💰 *"Son 12 ayda %5'ten fazla temettü veren ve 5 yıldır kesintisiz ödeyen hisseler hangileri?"*
+> 🤖 *"Makine öğrenmesi modeli gerçekten işe yarıyor mu?"* (Cevap: dürüstçe hayır; ayrıntılar aşağıda.)
 
 > ⚠️ **Yasal uyarı:** Bu proje eğitim ve portföy amaçlıdır. Yatırım tavsiyesi değildir. Gerçek para ile işlem yapmaz.
 
@@ -21,7 +22,6 @@ Fintech stajı başvuruları için şu becerileri tek bir projede göstermek:
 | Veri mühendisliği, API kullanımı | Veri katmanı (yfinance, TCMB EVDS) |
 | Makine öğrenmesi ve dürüst model değerlendirme | Tahmin modülü |
 | Finansal analiz, risk metrikleri | Backtest motoru |
-| AI agent / LLM tool use | Sohbet ajanı |
 | Ürün geliştirme, kullanıcı ihtiyacı analizi | Ücretsiz grafik/çizim aracı, Streamlit arayüzü ve canlı demo |
 
 ---
@@ -29,23 +29,18 @@ Fintech stajı başvuruları için şu becerileri tek bir projede göstermek:
 ## 🏗️ Mimari
 
 ```
-┌─────────────────────────────────────────────────────┐
-│              Streamlit Arayüzü                      │
-│ [Sohbet] [Grafik] [Analiz] [Backtest] [Model]       │
-└──────────────────────┬──────────────────────────────┘
-                       │
-              ┌────────▼────────┐
-              │   LLM Ajanı     │  ← soruyu anlar, araç seçer,
-              │  (Claude API)   │    sonucu Türkçe açıklar
-              └────────┬────────┘
-        ┌──────────────┼──────────────┐
-        ▼              ▼              ▼
- ┌────────────┐ ┌────────────┐ ┌────────────┐
- │ Veri       │ │ ML Tahmin  │ │ Backtest   │
- │ Katmanı    │ │ Modülü     │ │ Motoru     │
- └─────┬──────┘ └────────────┘ └────────────┘
+┌──────────────────────────────────────────────────────────┐      ┌───────────────────────────┐
+│ Kullanıcı arayüzü (Streamlit, internette)               │      │ Admin sayfası (sadece      │
+│ [Grafik] [Analiz] [Temettü] [Backtest] [Model]          │      │ yerel, 127.0.0.1)          │
+└───────────────┬──────────────────────────┬──────────────┘      └─────────────┬─────────────┘
+                │ okur                     │ duyuru / geri bildirim            │ günceller
+                ▼                          ▼                                   ▼
+ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌──────────────┐ ┌──────────────────────────┐
+ │ Veri       │ │ ML Tahmin  │ │ Backtest   │ │ Depo (SQLite │ │ İleri test (her akşam,   │
+ │ Katmanı    │ │ Modülü     │ │ Motoru     │ │ → Supabase)  │ │ parmak izi zinciri, git) │
+ └─────┬──────┘ └────────────┘ └────────────┘ └──────────────┘ └──────────────────────────┘
        ▼
- yfinance (BIST, .IS) · TCMB EVDS (kur, enflasyon) · yerel önbellek
+ yfinance (BIST, .IS) · TCMB EVDS (kur, enflasyon) · parquet önbellek
 ```
 
 ---
@@ -80,9 +75,6 @@ bist_asistan/
 │   │   ├── engine.py       # vektörel backtest motoru (kendi yazdığımız)
 │   │   ├── strategies.py   # al-ve-tut, MA kesişimi, RSI, ML sinyali
 │   │   └── metrics.py      # toplam getiri, CAGR, Sharpe, max drawdown, win rate
-│   └── agent/
-│       ├── tools.py        # ajanın çağırabileceği araçlar
-│       └── agent.py        # LLM ajan döngüsü
 ├── app/
 │   ├── streamlit_app.py    # kullanıcı arayüzü (internette)
 │   ├── ortak.py            # veri yükleme, grafik teması, duyuru, geri bildirim
@@ -170,16 +162,8 @@ Backtest geçmişe bakar; ileri test ise modeli **gerçek zamanlı** sınar: tah
 - **ML portföyü:** 5 günde bir, eşiği aşan en güçlü 10 hisse. Karşılaştırma: XU100, eşit ağırlıklı 81 hisse, rastgele 10 hisse.
 - **Aşama 3 sonucu (2019-2026):** ML portföyü yıllık %35 (TL) ile eşit ağırlıklı portföyün (%56) ve rastgele seçimin (%38) gerisinde kaldı; maliyetsiz senaryoda da geride. Model sinyali al-ve-tut'u geçmiyor. Ayrıntılar: `docs/deney-gunlugu.md`.
 
-### 4. LLM ajanı
-- Claude API ile **tool use** (fonksiyon çağırma). Kullanılacak model ve SDK sürümü güncel Anthropic dokümantasyonuna göre seçilir.
-- **Araçlar:**
-  - `hisse_ozeti(sembol, donem)`: fiyat, getiri, volatilite özeti
-  - `backtest_calistir(sembol, strateji, baslangic, bitis)`: backtest sonuçları
-  - `model_tahmini(sembol)`: güncel tahmin, olasılık ve modelin geçmiş başarısı
-  - `hisse_karsilastir(semboller, metrik)`
-  - `makro_veri(gosterge, donem)`: kur, enflasyon
-- **Kurallar (system prompt):** Türkçe cevap verir, sayıları araçlardan alır ve asla uydurmaz, her tahminde belirsizliği belirtir, yatırım tavsiyesi vermez.
-- API anahtarı `.env` dosyasından okunur. Anahtar yoksa uygulama sohbet sekmesi hariç çalışmaya devam eder.
+### 4. ~~LLM ajanı~~ (kapsam dışı bırakıldı)
+İlk planda Claude API ile araç çağıran bir sohbet ajanı vardı. Claude API'nin ücretsiz bir modeli olmadığı ve yayındaki uygulamada herkesin geliştiricinin API anahtarıyla sohbet etmesi kontrolsüz maliyet yaratacağı için bu modül **bilinçli olarak çıkarıldı**. Araçlara dönüşebilecek fonksiyonlar (`chart.son_degerler`, `predict.gecmis_basari`, backtest ve temettü fonksiyonları) zaten modüler olduğu için ileride eklenebilir.
 
 ### 5. Ücretsiz grafik ve çizim aracı
 Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra ücretli üyelik istiyor. Bu modül, temel teknik analiz ihtiyacını **tamamen ücretsiz ve sınırsız** karşılayan basit bir alternatif.
@@ -190,12 +174,11 @@ Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra 
 - **Çizimleri kaydetme:** Kullanıcının çizimleri hisse bazında **kendi tarayıcısında** (localStorage) saklanır ve hisse tekrar açıldığında geri yüklenir. Sunucuda saklansaydı yayında tüm kullanıcılar aynı çizimleri görür ve sunucu yeniden başladığında silinirdi. Başka cihaza taşımak için "JSON indir / yükle"; yüklenen dosya temizlenir (sadece izinli şekil alanları).
 - **Fiyat:** Bölünmeye göre düzeltilmiş (temettüye göre değil): son fiyat aracı kurumdakiyle aynı, bedelsizler sahte uçurum oluşturmaz.
 - **Teknik:** Streamlit'in hazır grafiği çizimleri Python'a döndürmediği için derleme gerektirmeyen küçük bir özel bileşen yazıldı (Plotly.js yerel dosyadan, CDN yok).
-- **Ajan entegrasyonu:** Ajan, grafikteki indikatörleri yorumlayabilir. Örnek: *"Grafikte gördüğüm RSI 75, bu ne anlama geliyor?"*
-- **Sınırlamalar (açıkça belirtilmeli):** Veri gecikmeli gelir (anlık değil), çizimler kullanıcı hesabına değil yerel dosyaya kaydedilir, otomatik formasyon tanıma yoktur.
+- **Sınırlamalar (açıkça belirtilmeli):** Veri gecikmeli gelir (anlık değil), çizimler kullanıcı hesabına değil tarayıcıya kaydedilir (başka cihazda görünmez), otomatik formasyon tanıma yoktur.
 - Başka bir platformun adı, logosu veya tasarımı kopyalanmaz. Kendi özgün arayüzümüz olur.
 
 ### 6. Streamlit arayüzü
-- **Sekmeler:** Sohbet · Grafik (çizim araçlı) · Hisse Analizi · Temettü · Backtest (strateji seçimi ve sermaye eğrisi) · Model Performansı
+- **Sekmeler:** Grafik (çizim araçlı) · Hisse Analizi · Temettü · Backtest (strateji seçimi ve sermaye eğrisi) · Model Performansı
 - Kullanıcılar kısa geri bildirim bırakabilir (👍/👎 ve en fazla 200 karakter not), yöneticinin duyuruları sayfanın üstünde görünür.
 - **Güncel model sinyalleri herkese açık sayfada gösterilmez** (yatırım tavsiyesi algısı / SPK düzenlemesi); sadece modelin geçmiş ve ileri test performansı gösterilir. Güncel tahminler yalnızca yerel admin sayfasında.
 - Uygulama internete gitmez: veriyi yerel taraf günceller, uygulama önbellekten okur (Yahoo bulut sunucularını daha sık engelliyor).
@@ -218,10 +201,10 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 - [x] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
 - [x] **Aşama 3a: İleri test.** Dondurulmuş model, günlük tahmin, parmak izi zinciri, korumalı Excel, Görev Zamanlayıcı
 - [x] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
-- [x] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
+- [x] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri, geri bildirim
 - [x] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
 - [x] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
-- [ ] **Aşama 5: LLM ajanı.** Araçlar, ajan döngüsü, Sohbet sekmesi
+- ~~**Aşama 5: LLM ajanı.**~~ Kapsam dışı bırakıldı (ücretsiz model yok, yayında maliyet riski)
 - [ ] **Aşama 6: Cila.** README'ye ekran görüntüleri ve sonuç tabloları, deploy, `docs/mulakat-notlari.md`
 
 ---
@@ -256,7 +239,6 @@ Windows'ta yerel başlatma betikleri: `uygulama_baslat.ps1` (kullanıcı sayfas�
 
 **.env değişkenleri:**
 ```
-ANTHROPIC_API_KEY=   # LLM ajanı için (opsiyonel)
 EVDS_API_KEY=        # TCMB makro verisi için (opsiyonel)
 ```
 
@@ -270,7 +252,7 @@ EVDS_API_KEY=        # TCMB makro verisi için (opsiyonel)
 
 ## 🛠️ Teknolojiler
 
-Python · pandas · numpy · pyarrow · JavaScript (Plotly.js, Streamlit özel bileşeni) · scikit-learn · LightGBM · yfinance · evds · Plotly · Streamlit · Anthropic Claude API · pytest
+Python · pandas · numpy · pyarrow · JavaScript (Plotly.js, Streamlit özel bileşeni) · scikit-learn · LightGBM · yfinance · evds · Plotly · Streamlit · pytest
 
 ---
 

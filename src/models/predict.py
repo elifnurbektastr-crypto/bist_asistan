@@ -1,6 +1,6 @@
 """Güncel tahmin: tüm geçmişle eğitilmiş modelle son işlem gününün tahmini.
 
-Ajanın `model_tahmini(sembol)` aracı bu modülü kullanacak. Tahminle birlikte modelin
+Admin sayfası ve ileri test bu modülü kullanır. Tahminle birlikte modelin
 walk-forward'daki geçmiş başarısı da döner, böylece kullanıcı tahmine ne kadar
 güvenebileceğini görür.
 """

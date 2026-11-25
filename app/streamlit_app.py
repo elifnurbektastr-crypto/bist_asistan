@@ -21,19 +21,16 @@ def main() -> None:
     ortak.kenar_cubugu()
     st.title("📈 BIST Yatırım Araştırma Asistanı")
     ortak.duyurular()
-    sekmeler = st.tabs(["💬 Sohbet", "🕯️ Grafik", "🔎 Hisse Analizi", "💰 Temettü", "🧪 Backtest", "🤖 Model Performansı"])
+    sekmeler = st.tabs(["🕯️ Grafik", "🔎 Hisse Analizi", "💰 Temettü", "🧪 Backtest", "🤖 Model Performansı"])
     with sekmeler[0]:
-        st.info("Yapay zekâ asistanıyla sohbet yakında (Aşama 5). Asistan, aşağıdaki sekmelerdeki araçları "
-                "kendisi çalıştırıp sonucu Türkçe açıklayacak.", icon="🚧")
-    with sekmeler[1]:
         grafik.goster()
-    with sekmeler[2]:
+    with sekmeler[1]:
         analiz.goster()
-    with sekmeler[3]:
+    with sekmeler[2]:
         temettu.goster()
-    with sekmeler[4]:
+    with sekmeler[3]:
         backtest.goster()
-    with sekmeler[5]:
+    with sekmeler[4]:
         model.goster()
 
 

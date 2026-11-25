@@ -173,7 +173,7 @@ def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gu
 
 
 def son_degerler(df: pd.DataFrame) -> dict:
-    """Ajanın ve kullanıcının yorumlayabileceği son indikatör değerleri (günlük)."""
+    """Kullanıcının yorumlayabileceği son indikatör değerleri (günlük)."""
     k = bolunme_duzeltilmis(df)["kapanis"]
     m, b = macd(k), bollinger(k)
     return {

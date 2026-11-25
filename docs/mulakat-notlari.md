@@ -7,13 +7,13 @@ Her aşama için: **ne yaptık, neden böyle yaptık, karşılaşılan sorunlar,
 ## Aşama 0: Kurulum
 
 ### Ne yaptık?
-- Modüler bir klasör yapısı kurduk: `src/` altında veri, özellikler, modeller, grafik, backtest ve ajan ayrı paketler hâlinde duruyor. Arayüz (`app/`), testler (`tests/`) ve dokümanlar (`docs/`) ayrı tutuluyor.
+- Modüler bir klasör yapısı kurduk: `src/` altında veri, özellikler, modeller, grafik ve backtest ayrı paketler hâlinde duruyor. Arayüz (`app/`), testler (`tests/`) ve dokümanlar (`docs/`) ayrı tutuluyor.
 - `requirements.txt` (alt sürüm sınırlarıyla) ve `requirements-lock.txt` (`pip freeze` ile birebir sürümler) dosyalarını hazırladık.
 - `.gitignore` ve `.env.example` dosyalarını oluşturduk. API anahtarları yalnızca `.env` dosyasında duruyor ve bu dosya git'e girmiyor.
 - Python 3.12 ile `.venv` sanal ortamını kurduk ve git deposunu başlattık.
 
 ### Neden böyle yaptık?
-- **Modüler yapı:** Her katmanın tek bir sorumluluğu var. Örneğin backtest motoru, verinin yfinance'ten mi yoksa önbellekten mi geldiğini bilmek zorunda değil. Bu sayede hem test etmek hem de ajana "araç" olarak bağlamak kolaylaşıyor.
+- **Modüler yapı:** Her katmanın tek bir sorumluluğu var. Örneğin backtest motoru, verinin yfinance'ten mi yoksa önbellekten mi geldiğini bilmek zorunda değil. Bu sayede her parça ayrı test edilebiliyor ve arayüzden, admin sayfasından ya da ileri testten aynı fonksiyonlar çağrılabiliyor.
 - **Sanal ortam:** Proje bağımlılıkları bilgisayardaki diğer projelerle çakışmıyor.
 - **İki ayrı requirements dosyası:** `requirements.txt` esnek kalıyor (yeni güvenlik yamaları gelebilir). `requirements-lock.txt` ise "bende çalışıyordu" sorununu önlüyor, aynı ortamı birebir yeniden kurmayı sağlıyor.
 - **`.env` ve `.env.example`:** Gizli anahtarlar koddan ayrı tutuluyor. Şablon dosya, projeyi klonlayan kişiye hangi değişkenlerin gerektiğini gösteriyor.
@@ -213,7 +213,7 @@ C: Modeli doğrudan gün içi sıralama için eğitmek (hedef: o gün hisselerin
 ## Aşama 4: Streamlit arayüzü
 
 ### Ne yaptık?
-- **Sekmeler:** Hisse Analizi (fiyat, TL/USD/XU100 getirisi, volatilite, maks. düşüş, RSI), Temettü (filtreler, en yüksek verimliler grafiği, hisse bazında ödeme geçmişi ve "elimdeki adet için ne kadar"), Backtest (tek hisse için canlı strateji karşılaştırması, TL/USD, maliyet ve nakit faizi ayarı; model portföyü sonuçları), Model Performansı (walk-forward, ileri test, deney günlüğü). Sohbet ve Grafik sekmeleri Aşama 5 ve 4b'de dolacak.
+- **Sekmeler:** Hisse Analizi (fiyat, TL/USD/XU100 getirisi, volatilite, maks. düşüş, RSI), Temettü (filtreler, en yüksek verimliler grafiği, hisse bazında ödeme geçmişi ve "elimdeki adet için ne kadar"), Backtest (tek hisse için canlı strateji karşılaştırması, TL/USD, maliyet ve nakit faizi ayarı; model portföyü sonuçları), Model Performansı (walk-forward, ileri test, deney günlüğü). Grafik sekmesi Aşama 4b'de eklendi.
 - **Duyurular ve geri bildirim:** Her sekmenin altında 👍/👎 ve en fazla 200 karakter not. Duyurular ve geri bildirimler `src/depo.py` arayüzü üzerinden SQLite'a yazılıyor; yayında aynı arayüzle Supabase'e geçilecek.
 - **Testler:** Depo testleri (SQL enjeksiyonu dahil) ve Streamlit `AppTest` ile tüm uygulamanın hatasız açıldığını doğrulayan duman testi.
 
@@ -262,7 +262,7 @@ C: Duyurular ve geri bildirimler ortak bir depo arayüzü üzerinden yazılıp o
 - Mum grafiği (günlük/haftalık/aylık), hacim, istenen kadar MA/EMA (okunabilirlik için en fazla 6 çizgi), Bollinger, RSI ve MACD panelleri.
 - Çizim araçları: trend çizgisi, yatay destek/direnç (tıklanan fiyat seviyesinde), bölge, serbest çizim, seçili çizimi silme, tümünü silme. Çizim sayısında pratik sınır yok.
 - Çizimler kullanıcının tarayıcısında hisse bazında saklanıyor; JSON olarak indirilip başka cihaza yüklenebiliyor.
-- Grafiğin altında son kapanış, RSI ve ortalamalara uzaklık; bu değerleri (`chart.son_degerler`) Aşama 5'te ajan da kullanacak.
+- Grafiğin altında son kapanış, RSI ve ortalamalara uzaklık; bu değerler `chart.son_degerler` fonksiyonundan geliyor.
 
 ### Neden böyle yaptık?
 - **Özel bileşen:** Streamlit'in hazır Plotly grafiği çizilen şekilleri Python'a geri vermiyor; sayfa yenilenince çizimler kayboluyordu. Derleme (npm) gerektirmeyen tek bir HTML + JS dosyasıyla Streamlit'in bileşen protokolünü kendim uyguladım.
@@ -282,3 +282,14 @@ C: Proje kuralı başka bir platformun tasarımını kopyalamamaktı ve hazır s
 
 **S: Kullanıcı verisini tarayıcıda saklamanın riskleri neler?**
 C: Veri cihaza bağlı kalır ve tarayıcı temizlenince silinir; bu yüzden dışa aktarma var. Güvenlik tarafında localStorage aynı kökenden çalışan her betiğe açıktır; bu yüzden içine sadece temizlenmiş şekil verisi yazıyorum, kişisel veri yazmıyorum. Kullanıcı hesabı gerekseydi çizimleri Supabase'de kullanıcı bazında, satır düzeyi güvenlikle saklardım.
+
+---
+
+## Aşama 5: LLM ajanı — kapsam dışı bırakıldı
+
+### Ne oldu?
+Plan, Claude API ile araç çağıran (tool use) bir sohbet ajanıydı. Uygulamaya geçmeden önce maliyet modeli çıkarıldı: Claude API'nin ücretsiz bir modeli yok; yayındaki uygulamada herkes geliştiricinin anahtarıyla sohbet edeceği için harcama kontrolsüz olurdu. Seçenekler (oturum/günlük bütçe sınırı, kullanıcının kendi anahtarı, yayında kapalı sohbet, ücretsiz yerel açık model, çok ucuz model) artı/eksileriyle değerlendirildi ve **sohbet tamamen çıkarıldı**.
+
+### Olası mülakat soruları
+**S: Neden LLM ajanını yapmadın? Bu bir eksik değil mi?**
+C: Bilinçli bir kapsam kararıydı. Ajanın değeri, mevcut sekmelerin zaten gösterdiği bilgiyi doğal dille sunmaktı; buna karşılık yayında kontrolsüz API maliyeti ve "yatırım tavsiyesi" gibi algılanabilecek serbest metin üretme riski vardı. Maliyet modelini çıkarıp alternatifleri karşılaştırdım ve özelliği çıkarmayı seçtim. Kod modüler olduğu için (backtest, temettü, model performansı fonksiyonları) ileride bir ajan bunları araç olarak çağırabilir; ilk adım olarak günlük bütçe sınırlı, yerel bir sürüm yapardım.
