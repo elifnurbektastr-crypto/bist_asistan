@@ -1,0 +1,13 @@
+# Yahoo'nun kaydetmediği bölünmeler / sermaye artırımları. Oran KAP duyurusundan doğrulanmalı.
+# oran: 1 hissenin kaç hisse olduğu (ör. %900 bedelsiz = 10). kaynak: KAP duyuru linki ya da numarası
+kod,tarih,oran,aciklama,kaynak
+AYGAZ,2022-09-01,0.5796,fiyattan tahmin (getiri %72.5),KAP ile dogrulanacak
+CCOLA,2024-08-01,10.8084,fiyattan tahmin (getiri %-90.7),KAP ile dogrulanacak
+CVKMD,2026-08-03,2.6233,fiyattan tahmin (getiri %-61.9),KAP ile dogrulanacak
+EUREN,2024-12-02,2.7433,fiyattan tahmin (getiri %-63.5),KAP ile dogrulanacak
+FENER,2024-12-09,2.4688,fiyattan tahmin (getiri %-59.5),KAP ile dogrulanacak
+FENER,2025-06-23,4.6789,fiyattan tahmin (getiri %-78.6),KAP ile dogrulanacak
+FENER,2025-12-29,2.7536,fiyattan tahmin (getiri %-63.7),KAP ile dogrulanacak
+HEKTS,2021-04-30,1.4026,fiyattan tahmin (getiri %44.1),KAP ile dogrulanacak
+HEKTS,2024-09-09,2.8447,fiyattan tahmin (getiri %-64.8),KAP ile dogrulanacak
+TUKAS,2025-02-03,3.0711,fiyattan tahmin (getiri %-67.4),KAP ile dogrulanacak

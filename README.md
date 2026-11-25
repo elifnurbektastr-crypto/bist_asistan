@@ -61,8 +61,11 @@ bist_asistan/
 ├── src/
 │   ├── config.py           # hisse listesi, tarih aralıkları, komisyon oranı
 │   ├── data/
-│   │   ├── fetch.py        # yfinance + EVDS veri çekme
-│   │   └── cache.py        # parquet ile yerel önbellek
+│   │   ├── fetch.py        # yfinance + EVDS veri çekme, ham/düzeltilmiş fiyat
+│   │   ├── cache.py        # parquet ile yerel önbellek
+│   │   ├── quality.py      # veri kalitesi kontrolleri (eksik gün, limit aşımı, bölünme)
+│   │   ├── dividends.py    # temettü geçmişi, özet, yaklaşanlar, filtreleme
+│   │   └── guncelle.py     # tüm veriyi güncelleyen komut: python -m src.data.guncelle
 │   ├── features/
 │   │   └── indicators.py   # getiri, volatilite, RSI, MA, makro özellikler
 │   ├── models/
@@ -80,7 +83,10 @@ bist_asistan/
 │       ├── tools.py        # ajanın çağırabileceği araçlar
 │       └── agent.py        # LLM ajan döngüsü
 ├── app/
-│   └── streamlit_app.py
+│   ├── streamlit_app.py    # kullanıcı arayüzü (internette)
+│   └── admin_app.py        # yönetici sayfası (sadece yerel bilgisayarda)
+├── referans/
+│   └── bist100.csv         # hisse evreni (kaynak ve tarih referans/README.md'de)
 ├── notebooks/
 │   └── 01_kesif.ipynb      # keşifsel veri analizi
 ├── data/                   # parquet önbelleği ve çizim JSON'ları (git'e girmez)
@@ -95,10 +101,23 @@ bist_asistan/
 ## 🧩 Modüller
 
 ### 1. Veri katmanı
-- **Hisseler:** BIST 30'dan seçilmiş 10–15 likit hisse (ör. THYAO.IS, GARAN.IS, ASELS.IS, BIMAS.IS, KCHOL.IS, AKBNK.IS, EREGL.IS, SISE.IS, TUPRS.IS, FROTO.IS) ve XU100.IS endeksi
-- **Makro veri:** USD/TRY (yfinance `TRY=X`), TÜFE ve politika faizi (TCMB EVDS, ücretsiz API anahtarı gerekir. Anahtar yoksa bu kısım atlanabilir olmalı.)
-- Veriler `data/` klasöründe parquet olarak önbelleğe alınır, her seferinde yeniden indirilmez.
-- Eksik gün, bölünme ve temettü düzeltmeleri kontrol edilir.
+- **Hisseler:** Önce BIST 100 (`referans/bist100.csv`), ileride tüm BIST. XU100.IS endeksi karşılaştırma ölçütüdür. Fiyatlar 2015'ten itibaren.
+- **Makro veri:** USD/TRY (yfinance `TRY=X`), TÜFE (`TP.TUKFIY2025.GENEL`, 2025=100) ve politika faizi (`TP.APIFON4`) TCMB EVDS'ten. Anahtar yoksa bu kısım atlanır.
+- Veriler `data/` klasöründe parquet olarak önbelleğe alınır; sonraki çalıştırmalarda sadece eksik günler indirilir.
+- **Ham + düzeltilmiş fiyat:** Grafikte o gün gerçekte işlem gören fiyat, getiri ve backtest hesaplarında bölünme + temettü düzeltilmiş fiyat kullanılır.
+- **Kalite kontrolleri:** eksik gün, tatil satırları (Yahoo tatilleri önceki fiyatla dolduruyor, temizlenir), ±%10 limit aşımı, bölünme hesabının doğrulanması.
+- **Bilinen sınırlamalar:**
+  - Yahoo BIST verisini zaman zaman engelliyor; kod yeniden dener, olmazsa önbelleğe döner.
+  - Bedelli sermaye artırımları Yahoo'da düzeltilmiyor, bu günlerde sahte düşüşler görülebilir.
+  - Hisse listesi bugünkü BIST 100'dür (survivorship bias).
+  - TÜFE ay bittikten sonra açıklanır; özelliklerde `tufe_yayin_tarihi` kullanılmalıdır (look-ahead).
+
+### 1b. Temettü
+- **Geçmiş:** Her ödeme hem o gün ödenen TL hem de bugünkü hisse sayısı bazında. Bedelsiz bölünmelerden sonra verimin doğru hesaplanması için bu ayrım gerekli.
+- **Özet tablo:** son temettü tarihi ve tutarı, son 12 ay toplam TL ve verim, kesintisiz temettü yılı.
+- **Yaklaşan temettüler:** yfinance'ten gelir, **doğrulanmamıştır** (resmi kaynak KAP); ekranda bu etiketle gösterilir.
+- **Filtreleme:** minimum verim, minimum TL, önümüzdeki N gün içinde hak kullanımı, kesintisiz yıl, sektör.
+- Tutarlar brüttür (stopaj düşülmemiştir).
 
 ### 2. ML tahmin modülü
 - **Hedef:** Önümüzdeki 5 işlem gününde getirinin pozitif olup olmayacağı (sınıflandırma). Alternatif: 20 günlük volatilite tahmini (regresyon). Volatilite tahmini genelde daha başarılı olur, ikisi de denenebilir.
@@ -147,8 +166,14 @@ Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra 
 - Başka bir platformun adı, logosu veya tasarımı kopyalanmaz. Kendi özgün arayüzümüz olur.
 
 ### 6. Streamlit arayüzü
-- **Sekmeler:** Sohbet · Grafik (çizim araçlı) · Hisse Analizi · Backtest (strateji seçimi ve sermaye eğrisi) · Model Performansı
+- **Sekmeler:** Sohbet · Grafik (çizim araçlı) · Hisse Analizi · Temettü · Backtest (strateji seçimi ve sermaye eğrisi) · Model Performansı
+- Kullanıcılar kısa geri bildirim bırakabilir (👍/👎 ve kısa not), yöneticinin duyuruları görünür.
 - Streamlit Community Cloud'a ücretsiz deploy edilir ve README'ye demo linki eklenir.
+
+### 7. Yönetici (admin) sayfası
+- **Sadece yerel bilgisayarda çalışır, internete açılmaz**; bu yüzden şifre gerekmez.
+- Elle veri girişi/düzeltme, duyuru yayınlama, kullanıcı geri bildirimlerini okuma, veri güncelleme ve kalite raporu.
+- Kullanıcı sayfası ile ortak veri deposu (duyurular ve geri bildirimler için) Aşama 4'te seçilecek.
 
 ---
 
@@ -157,10 +182,11 @@ Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra 
 Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 
 - [x] **Aşama 0: Kurulum.** Klasör yapısı, `requirements.txt`, `.gitignore`, `.env.example`, git init
-- [ ] **Aşama 1: Veri katmanı.** Veri çekme, önbellek ve testler. Keşif notebook'u.
+- [x] **Aşama 1: Veri katmanı.** Veri çekme, önbellek ve testler. Keşif notebook'u.
 - [ ] **Aşama 2: Özellikler ve ML.** Walk-forward eğitim, baseline karşılaştırması, sonuç raporu
 - [ ] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
-- [ ] **Aşama 4: Streamlit.** Analiz, Backtest ve Model sekmeleri (ajan olmadan)
+- [ ] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
+- [ ] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
 - [ ] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
 - [ ] **Aşama 5: LLM ajanı.** Araçlar, ajan döngüsü, Sohbet sekmesi
 - [ ] **Aşama 6: Cila.** README'ye ekran görüntüleri ve sonuç tabloları, deploy, `docs/mulakat-notlari.md`
@@ -209,7 +235,7 @@ EVDS_API_KEY=        # TCMB makro verisi için (opsiyonel)
 
 ## 🛠️ Teknolojiler
 
-Python · pandas · numpy · scikit-learn · LightGBM · yfinance · evds · Plotly · Streamlit · Anthropic Claude API · pytest
+Python · pandas · numpy · pyarrow · scikit-learn · LightGBM · yfinance · evds · Plotly · Streamlit · Anthropic Claude API · pytest
 
 ---
 

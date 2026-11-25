@@ -5,6 +5,7 @@ pyarrow>=15.0          # parquet önbelleği için
 yfinance>=0.2.50       # BIST fiyatları (.IS) ve USD/TRY
 evds>=0.3              # TCMB EVDS makro verisi (opsiyonel, anahtar gerekir)
 python-dotenv>=1.0     # .env dosyasından API anahtarlarını okuma
+openpyxl>=3.1         # Excel okuma (hisse listeleri, elle veri girişi)
 
 # --- Makine öğrenmesi ---
 scikit-learn>=1.4
@@ -12,6 +13,7 @@ lightgbm>=4.3
 
 # --- Görselleştirme ve arayüz ---
 plotly>=5.20
+matplotlib>=3.8      # notebook grafikleri (statik)
 streamlit>=1.35
 
 # --- LLM ajanı ---
