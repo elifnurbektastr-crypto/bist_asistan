@@ -14,7 +14,7 @@ def goster() -> None:
     p = ortak.piyasa_verisi()
     c1, c2, c3 = st.columns([1, 1, 2])
     kod = c1.selectbox("Hisse", ortak.kodlar(), index=ortak.kodlar().index("THYAO"), key="grafik_kod")
-    aralik = c2.radio("Mum", list(chart.ARALIKLAR), horizontal=True, key="grafik_aralik")
+    aralik = c2.radio("Zaman aralığı", list(chart.ARALIKLAR), horizontal=True, key="grafik_aralik")
     donem = c3.radio("Dönem", list(DONEMLER), index=1, horizontal=True, key="grafik_donem")
 
     c4, c5, c6 = st.columns([1, 1, 2])
