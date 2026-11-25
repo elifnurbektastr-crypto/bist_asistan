@@ -253,3 +253,31 @@ C: Panel ağa açık olsaydı öyle olurdu. Burada panel sadece loopback (127.0.
 
 **S: Admin ile kullanıcı uygulaması verilerini nasıl paylaşıyor?**
 C: Duyurular ve geri bildirimler ortak bir depo arayüzü üzerinden yazılıp okunuyor. Şimdi yerel SQLite, yayında Supabase (PostgreSQL). Fiyat verisini ise sadece yerel taraf günceller; kullanıcı uygulaması okur.
+
+---
+
+## Aşama 4b: Ücretsiz grafik ve çizim aracı
+
+### Ne yaptık?
+- Mum grafiği (günlük/haftalık/aylık), hacim, istenen kadar MA/EMA (okunabilirlik için en fazla 6 çizgi), Bollinger, RSI ve MACD panelleri.
+- Çizim araçları: trend çizgisi, yatay destek/direnç (tıklanan fiyat seviyesinde), bölge, serbest çizim, seçili çizimi silme, tümünü silme. Çizim sayısında pratik sınır yok.
+- Çizimler kullanıcının tarayıcısında hisse bazında saklanıyor; JSON olarak indirilip başka cihaza yüklenebiliyor.
+- Grafiğin altında son kapanış, RSI ve ortalamalara uzaklık; bu değerleri (`chart.son_degerler`) Aşama 5'te ajan da kullanacak.
+
+### Neden böyle yaptık?
+- **Özel bileşen:** Streamlit'in hazır Plotly grafiği çizilen şekilleri Python'a geri vermiyor; sayfa yenilenince çizimler kayboluyordu. Derleme (npm) gerektirmeyen tek bir HTML + JS dosyasıyla Streamlit'in bileşen protokolünü kendim uyguladım.
+- **Tarayıcıda saklama:** Sunucuda tek bir JSON dosyası yayında herkesin çizimini karıştırır ve sunucu yeniden başlayınca silinir. Tarayıcı depolaması kişiye özel, üyelik gerektirmiyor ve sunucuya yük bindirmiyor. Bedeli: başka cihazda görünmüyor; bunu dışa/içe aktarma ile çözdüm.
+- **Yüklenen JSON'u temizleme:** Kullanıcının yüklediği dosya kötü niyetli olabilir (ör. şekil etiketine HTML gömmek). Sadece izinli şekil türleri ve alanları geçiyor; boyut ve sayı sınırı var. Bunun Node ile yazılmış testi var.
+- **Bölünmeye göre düzeltilmiş fiyat:** Ham fiyatta bedelsizler %90'lık sahte uçurum yaratır ve ortalamaları bozar; temettüye göre düzeltilmiş fiyat ise geçmişte hiç görülmemiş fiyatlar gösterir. Grafik platformları da genelde bölünmeye göre düzeltilmiş fiyat kullanır.
+- **İndikatörler tüm geçmişte hesaplanıp sonra kesiliyor:** Böylece 6 aylık grafikte MA200 ilk günden doğru değer gösteriyor.
+
+### Karşılaşılan sorunlar
+- Python testleri bileşenin tarayıcıda çalıştığını gösteremiyordu. Bilgisayardaki Edge'i ekransız modda DevTools protokolüyle süren küçük bir Node betiği yazıp ekran görüntüsü aldım ve tarayıcıdaki JavaScript hatalarını topladım. Görüntüde sağdaki fiyat etiketlerinin kesildiğini, alt tarih etiketlerinin taştığını, ay adlarının İngilizce olduğunu ve açıklama sırasının ters olduğunu gördüm ve düzelttim (Plotly'ye Türkçe yerel ayar tanımladım).
+- `from app.bilesenler import grafik` satırı modülü değil aynı adlı fonksiyonu içe aktarıyordu; uygulamanın duman testi bunu yakaladı.
+
+### Olası mülakat soruları
+**S: Neden hazır bir grafik kütüphanesi (ör. bir trading platformunun grafiği) kullanmadın?**
+C: Proje kuralı başka bir platformun tasarımını kopyalamamaktı ve hazır seçeneklerin çoğu çizimleri kaydetmeyi desteklemiyordu. Plotly zaten projede vardı; üzerine ince bir bileşen yazmak hem bağımlılığı azalttı hem de her satırını açıklayabileceğim bir çözüm oldu.
+
+**S: Kullanıcı verisini tarayıcıda saklamanın riskleri neler?**
+C: Veri cihaza bağlı kalır ve tarayıcı temizlenince silinir; bu yüzden dışa aktarma var. Güvenlik tarafında localStorage aynı kökenden çalışan her betiğe açıktır; bu yüzden içine sadece temizlenmiş şekil verisi yazıyorum, kişisel veri yazmıyorum. Kullanıcı hesabı gerekseydi çizimleri Supabase'de kullanıcı bazında, satır düzeyi güvenlikle saklardım.

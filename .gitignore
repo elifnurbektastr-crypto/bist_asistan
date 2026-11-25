@@ -27,3 +27,6 @@ Thumbs.db
 
 # İleri test Excel raporu (kayıtlardan yeniden üretilir; asıl kayıt CSV + zincir)
 ileri_test/*.xlsx
+
+# Grafik bileşeni: plotly.js çalışma anında Python paketinden kopyalanır
+app/bilesenler/grafik/plotly.min.js

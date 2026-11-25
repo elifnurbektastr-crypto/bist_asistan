@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>BIST grafik</title>
+  <style>
+    :root { --metin: #0b0b0b; --ikincil: #52514e; --kenar: #d9d8d3; --zemin: #fcfcfb; --vurgu: #2a78d6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Source Sans Pro", system-ui, sans-serif; color: var(--metin); background: var(--zemin); }
+    #arac-cubugu { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0 8px; }
+    button, .dugme { font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--kenar); border-radius: 6px;
+                     background: #fff; color: var(--metin); cursor: pointer; line-height: 1.2; }
+    button:hover, .dugme:hover { border-color: var(--vurgu); }
+    button.aktif { background: var(--vurgu); border-color: var(--vurgu); color: #fff; }
+    button:focus-visible, .dugme:focus-within { outline: 2px solid var(--vurgu); outline-offset: 1px; }
+    .ayrac { width: 1px; height: 22px; background: var(--kenar); margin: 0 4px; }
+    #durum { font-size: 12px; color: var(--ikincil); margin-left: 6px; }
+    #ipucu { font-size: 12px; color: var(--ikincil); padding: 0 0 4px; min-height: 16px; }
+  </style>
+  <script src="plotly.min.js"></script>
+</head>
+<body>
+  <div id="arac-cubugu" role="toolbar" aria-label="Çizim araçları">
+    <button data-mod="pan" class="aktif" title="Grafiği sürükle, tekerlekle yakınlaştır">✋ Kaydır</button>
+    <button data-mod="drawline" title="İki nokta arasında çizgi">📈 Trend çizgisi</button>
+    <button data-mod="yatay" title="Fiyat grafiğine tıkla: o seviyede yatay çizgi">➖ Yatay çizgi</button>
+    <button data-mod="drawrect" title="Sürükleyerek bölge işaretle">▭ Bölge</button>
+    <button data-mod="drawopenpath" title="Serbest çizim">✏️ Serbest</button>
+    <span class="ayrac"></span>
+    <button id="sil" title="Önce bir çizime tıklayıp seç, sonra sil">🧽 Seçiliyi sil</button>
+    <button id="temizle" title="Bu hissedeki tüm çizimleri sil">🗑️ Tümünü sil</button>
+    <span class="ayrac"></span>
+    <button id="indir" title="Bu hissenin çizimlerini JSON dosyası olarak indir">⬇️ JSON indir</button>
+    <label class="dugme" title="Daha önce indirdiğin JSON dosyasını yükle">⬆️ JSON yükle
+      <input type="file" id="yukle" accept=".json,application/json" hidden>
+    </label>
+    <span id="durum" aria-live="polite"></span>
+  </div>
+  <div id="ipucu"></div>
+  <div id="grafik"></div>
+  <script src="grafik.js"></script>
+</body>
+</html>

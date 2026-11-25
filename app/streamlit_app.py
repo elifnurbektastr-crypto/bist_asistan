@@ -14,7 +14,7 @@ import streamlit as st  # noqa: E402
 st.set_page_config(page_title="BIST Araştırma Asistanı", page_icon="📈", layout="wide")
 
 from app import ortak  # noqa: E402
-from app.sekmeler import analiz, backtest, model, temettu  # noqa: E402
+from app.sekmeler import analiz, backtest, grafik, model, temettu  # noqa: E402
 
 
 def main() -> None:
@@ -26,7 +26,7 @@ def main() -> None:
         st.info("Yapay zekâ asistanıyla sohbet yakında (Aşama 5). Asistan, aşağıdaki sekmelerdeki araçları "
                 "kendisi çalıştırıp sonucu Türkçe açıklayacak.", icon="🚧")
     with sekmeler[1]:
-        st.info("Ücretsiz mum grafiği ve çizim aracı yakında (Aşama 4b).", icon="🚧")
+        grafik.goster()
     with sekmeler[2]:
         analiz.goster()
     with sekmeler[3]:

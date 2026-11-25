@@ -75,8 +75,7 @@ bist_asistan/
 │   │   ├── evaluate.py     # metrikler + baseline karşılaştırması
 │   │   └── predict.py
 │   ├── charting/
-│   │   ├── chart.py        # mum grafiği, indikatör katmanları, çizim modları
-│   │   └── drawings.py     # çizimleri JSON olarak kaydetme/yükleme
+│   │   └── chart.py        # mum verisi (bölünme düzeltmeli), haftalık/aylık, indikatörler, Plotly tanımı
 │   ├── backtest/
 │   │   ├── engine.py       # vektörel backtest motoru (kendi yazdığımız)
 │   │   ├── strategies.py   # al-ve-tut, MA kesişimi, RSI, ML sinyali
@@ -87,7 +86,8 @@ bist_asistan/
 ├── app/
 │   ├── streamlit_app.py    # kullanıcı arayüzü (internette)
 │   ├── ortak.py            # veri yükleme, grafik teması, duyuru, geri bildirim
-│   ├── sekmeler/           # analiz.py, temettu.py, backtest.py, model.py
+│   ├── sekmeler/           # grafik.py, analiz.py, temettu.py, backtest.py, model.py
+│   ├── bilesenler/grafik/  # özel grafik bileşeni (index.html + grafik.js): çizim araçları, localStorage
 │   └── admin_app.py        # yönetici sayfası (sadece yerel bilgisayarda)
 ├── referans/
 │   └── bist100.csv         # hisse evreni (kaynak ve tarih referans/README.md'de)
@@ -187,7 +187,9 @@ Piyasadaki popüler grafik platformları, birkaç çizim ve indikatörden sonra 
 - **Mum grafiği** (Plotly), hacim çubukları, zaman aralığı seçimi (günlük / haftalık / aylık)
 - **Çizim araçları:** trend çizgisi, yatay destek/direnç çizgisi, dikdörtgen bölge, serbest çizim, silgi (Plotly'nin yerleşik çizim modları). **Çizim sayısında sınır yok.**
 - **İndikatörler:** MA, EMA, RSI, MACD, Bollinger Bantları. Aynı anda istenildiği kadar eklenebilir.
-- **Çizimleri kaydetme:** Kullanıcının çizimleri hisse bazında yerel bir JSON dosyasına kaydedilir ve hisse tekrar açıldığında geri yüklenir.
+- **Çizimleri kaydetme:** Kullanıcının çizimleri hisse bazında **kendi tarayıcısında** (localStorage) saklanır ve hisse tekrar açıldığında geri yüklenir. Sunucuda saklansaydı yayında tüm kullanıcılar aynı çizimleri görür ve sunucu yeniden başladığında silinirdi. Başka cihaza taşımak için "JSON indir / yükle"; yüklenen dosya temizlenir (sadece izinli şekil alanları).
+- **Fiyat:** Bölünmeye göre düzeltilmiş (temettüye göre değil): son fiyat aracı kurumdakiyle aynı, bedelsizler sahte uçurum oluşturmaz.
+- **Teknik:** Streamlit'in hazır grafiği çizimleri Python'a döndürmediği için derleme gerektirmeyen küçük bir özel bileşen yazıldı (Plotly.js yerel dosyadan, CDN yok).
 - **Ajan entegrasyonu:** Ajan, grafikteki indikatörleri yorumlayabilir. Örnek: *"Grafikte gördüğüm RSI 75, bu ne anlama geliyor?"*
 - **Sınırlamalar (açıkça belirtilmeli):** Veri gecikmeli gelir (anlık değil), çizimler kullanıcı hesabına değil yerel dosyaya kaydedilir, otomatik formasyon tanıma yoktur.
 - Başka bir platformun adı, logosu veya tasarımı kopyalanmaz. Kendi özgün arayüzümüz olur.
@@ -218,7 +220,7 @@ Her aşama bitince çalışır durumda olmalı ve ayrı commit'lenmeli.
 - [x] **Aşama 3: Backtest.** Motor, 4 strateji, metrikler, TL/USD karşılaştırması, testler
 - [x] **Aşama 4: Streamlit.** Analiz, Temettü, Backtest ve Model sekmeleri (ajan olmadan), geri bildirim
 - [x] **Aşama 4a: Admin sayfası.** Elle veri girişi, duyurular, geri bildirimler, veri güncelleme (yerel)
-- [ ] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
+- [x] **Aşama 4b: Grafik aracı.** Mum grafiği, indikatörler, çizim araçları, çizimleri kaydetme
 - [ ] **Aşama 5: LLM ajanı.** Araçlar, ajan döngüsü, Sohbet sekmesi
 - [ ] **Aşama 6: Cila.** README'ye ekran görüntüleri ve sonuç tabloları, deploy, `docs/mulakat-notlari.md`
 
@@ -268,7 +270,7 @@ EVDS_API_KEY=        # TCMB makro verisi için (opsiyonel)
 
 ## 🛠️ Teknolojiler
 
-Python · pandas · numpy · pyarrow · scikit-learn · LightGBM · yfinance · evds · Plotly · Streamlit · Anthropic Claude API · pytest
+Python · pandas · numpy · pyarrow · JavaScript (Plotly.js, Streamlit özel bileşeni) · scikit-learn · LightGBM · yfinance · evds · Plotly · Streamlit · Anthropic Claude API · pytest
 
 ---
 
