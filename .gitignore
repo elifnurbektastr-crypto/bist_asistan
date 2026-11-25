@@ -1,0 +1,26 @@
+# Gizli bilgiler (API anahtarları asla git'e girmez)
+.env
+.streamlit/secrets.toml
+
+# Sanal ortam
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Veri önbelleği ve kullanıcı çizimleri (yeniden üretilebilir)
+data/*
+!data/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / işletim sistemi
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
