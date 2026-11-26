@@ -1,8 +1,8 @@
 """İleri test modeli: bir kez eğitilir, dondurulur ve tüm ileri test boyunca değişmez.
 
-Model dosyası büyük olduğu için git dışında (data/ileri_test/) durur; parmak izi ise
-git'teki ileri_test/model_surumu.json dosyasına yazılır. Yüklenirken parmak izi
-kontrol edilir: model değişmişse tahmin üretilmez.
+Model dosyası git'te (ileri_test/model/) durur: günlük görev GitHub sunucularında çalışır ve
+herkes dosyanın parmak izinin ileri_test/model_surumu.json'dakiyle aynı olduğunu doğrulayabilir.
+Yüklenirken parmak izi kontrol edilir: model değişmişse tahmin üretilmez.
 """
 
 import json
@@ -18,7 +18,7 @@ from src.features.indicators import OZELLIKLER
 from src.ileri_test.kayit import IT_DIZINI, dosya_hash
 from src.models import predict, train
 
-MODEL_DIZINI = config.VERI_DIZINI / "ileri_test"
+MODEL_DIZINI = IT_DIZINI / "model"
 SURUM_DOSYASI = IT_DIZINI / "model_surumu.json"
 
 

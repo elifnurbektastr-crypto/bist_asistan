@@ -1,0 +1,81 @@
+# İleri test ve veri güncellemesi — GitHub sunucularında, bilgisayar kapalıyken de çalışır.
+# Saatler UTC'dir (İstanbul = UTC+3). GitHub zamanlanmış işleri birkaç dakika ile bir saat arası
+# gecikmeli başlatabilir; bu yüzden her iş için yedek denemeler var. Komutlar aynı gün ikinci
+# kez çalışırsa hiçbir şey yapmaz, kaçırılan gün sonradan doldurulmaz.
+name: Günlük ileri test
+
+on:
+  schedule:
+    - cron: "45 7 * * 1-5"    # 10:45 TR  açılış fiyatları
+    - cron: "30 9 * * 1-5"    # 12:30 TR  açılış (yedek)
+    - cron: "30 16 * * 1-5"   # 19:30 TR  tahmin
+    - cron: "30 18 * * 1-5"   # 21:30 TR  tahmin (yedek)
+    - cron: "0 5 * * 2-6"     # 08:00 TR  dünün tahmini (son yedek, seans 10:00'da açılır)
+  workflow_dispatch:
+    inputs:
+      is:
+        description: "Çalıştırılacak iş"
+        type: choice
+        options: [tahmin, acilis]
+        default: tahmin
+
+permissions:
+  contents: write   # ileri test kayıtlarını commit'leyip göndermek için
+
+concurrency:
+  group: ileri-test
+  cancel-in-progress: false
+
+jobs:
+  calistir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      EVDS_API_KEY: ${{ secrets.EVDS_API_KEY }}
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Bağımlılıklar
+        run: pip install -r requirements.txt
+
+      - name: Git kimliği
+        run: |
+          git config user.name "ileri-test-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Veriyi buluttan al
+        run: python -m src.bulut --indir
+
+      - name: Hangi iş?
+        id: is
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ad=${{ inputs.is }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "45 7 * * 1-5" ] || [ "${{ github.event.schedule }}" = "30 9 * * 1-5" ]; then
+            echo "ad=acilis" >> "$GITHUB_OUTPUT"
+          else
+            echo "ad=tahmin" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Açılış fiyatlarını kaydet
+        if: steps.is.outputs.ad == 'acilis'
+        run: python -m src.ileri_test.gunluk --acilis || echo "Açılış kaydı bu denemede yapılamadı; yedek deneme var."
+
+      - name: Veriyi güncelle, tahmin et, kaydet, yayınla
+        if: steps.is.outputs.ad == 'tahmin'
+        run: python -m src.ileri_test.gunluk || echo "Tahmin bu denemede yapılamadı; yedek deneme var."
+
+      - name: Kayıt bütünlüğü
+        run: python -m src.ileri_test.gunluk --dogrula
+
+      - name: Günlük kaydı
+        if: always()
+        run: tail -n 40 data/ileri_test.log || true

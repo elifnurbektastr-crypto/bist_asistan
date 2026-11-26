@@ -95,6 +95,9 @@ def indir(veri_dizini: Path = config.VERI_DIZINI) -> str | None:
     kova = istemci().storage.from_(KOVA)
     icerik = json.loads(kova.download(MANIFEST))
     aktar, _ = farklar(icerik["dosyalar"], yerel_manifest(veri_dizini))
+    # Dosyanın zamanı = verinin gerçekte güncellendiği an (indirme anı değil). Yoksa günlük görev
+    # "bu dosyalar az önce yazıldı" sanıp Yahoo'dan yeni günü hiç istemez (önbellek tazelik kuralı).
+    zaman = pd.Timestamp(icerik["guncelleme"]).timestamp() if icerik.get("guncelleme") else None
     for yol in aktar:
         hedef = veri_dizini / yol
         hedef.parent.mkdir(parents=True, exist_ok=True)
@@ -102,6 +105,8 @@ def indir(veri_dizini: Path = config.VERI_DIZINI) -> str | None:
         if hashlib.sha256(veri).hexdigest() != icerik["dosyalar"][yol]:
             raise RuntimeError(f"{yol} indirilirken bozuldu (parmak izi uyuşmuyor).")
         hedef.write_bytes(veri)
+        if zaman:
+            os.utime(hedef, (zaman, zaman))
     log.info("Buluttan indirildi: %d dosya.", len(aktar))
     return icerik.get("guncelleme")
 

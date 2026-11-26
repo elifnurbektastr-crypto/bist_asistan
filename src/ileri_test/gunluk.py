@@ -53,6 +53,8 @@ def git_commit(tarih: str, tur: str = "tahminleri") -> None:
                           "ileri_test/acilis_zincir.csv", "ileri_test/model_surumu.json"]
               if (config.KOK_DIZIN / p).exists()]
     try:
+        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", "main"], cwd=config.KOK_DIZIN,
+                       capture_output=True, timeout=180)
         subprocess.run(["git", "add", "--", *yollar], cwd=config.KOK_DIZIN, check=True, capture_output=True)
         sonuc = subprocess.run(
             ["git", "commit", "-m", f"İleri test: {tarih} {tur}", "--", *yollar],
@@ -112,8 +114,21 @@ def dondur() -> None:
     git_commit(f"model {bilgi['surum']} donduruldu")
 
 
+def git_cek() -> None:
+    """Kayıtlara bakmadan önce GitHub'daki son hâli alır: görev hem GitHub sunucusunda hem
+    bilgisayarda çalışırsa aynı gün için iki ayrı kayıt oluşmasın."""
+    try:
+        s = subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", "main"], cwd=config.KOK_DIZIN,
+                           capture_output=True, text=True, encoding="utf-8", timeout=180)
+        if s.returncode != 0:
+            log.warning("GitHub'dan son kayıtlar alınamadı: %s", (s.stdout + s.stderr).strip()[:200])
+    except (OSError, subprocess.TimeoutExpired) as hata:
+        log.warning("git pull çalıştırılamadı: %s", hata)
+
+
 def gunluk() -> int:
     """Günlük akış. Dönüş: 0 başarılı/yapacak iş yok, 1 tekrar denenmeli."""
+    git_cek()
     model, bilgi = it_model.yukle()   # model değişmişse burada durur
     veri, endeks, kur = _veriyi_ayir(fetch.fiyat_verisi(_semboller()))
     if endeks is None or not veri:
@@ -175,6 +190,7 @@ def main() -> None:
         excel_guncelle()
     elif arg.acilis:
         try:
+            git_cek()
             kod = acilis.acilis_kaydet()
             if kod == 0:
                 git_commit(pd.Timestamp.now(tz=config.SAAT_DILIMI).strftime("%Y-%m-%d"), "açılış fiyatları")

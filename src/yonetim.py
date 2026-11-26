@@ -117,16 +117,23 @@ def evren_kaydet(kodlar: list[str], yol: Path = EVREN_DOSYASI) -> None:
 def git_kaydet(yollar: list[Path], mesaj: str) -> tuple[bool, str]:
     """Sadece verilen dosyaları commit'ler (elle yapılan veri değişikliklerinin kaydı)."""
     goreli = [str(Path(y).relative_to(config.KOK_DIZIN)) for y in yollar]
+    calistir = lambda *k: subprocess.run(["git", *k], cwd=config.KOK_DIZIN, capture_output=True,  # noqa: E731
+                                          text=True, encoding="utf-8", timeout=180)
     try:
-        subprocess.run(["git", "add", "--", *goreli], cwd=config.KOK_DIZIN, check=True, capture_output=True)
-        s = subprocess.run(["git", "commit", "-m", mesaj, "--", *goreli], cwd=config.KOK_DIZIN,
-                           capture_output=True, text=True, encoding="utf-8")
-        return s.returncode == 0, (s.stdout + s.stderr).strip()
-    except (OSError, subprocess.CalledProcessError) as hata:
+        # GitHub'daki günlük görev de commit atıyor: önce onun kayıtlarını al, çakışma olmasın
+        calistir("pull", "--rebase", "--autostash", "origin", "main")
+        calistir("add", "--", *goreli)
+        s = calistir("commit", "-m", mesaj, "--", *goreli)
+        if s.returncode != 0:
+            return False, (s.stdout + s.stderr).strip()
+        g = calistir("push", "origin", "HEAD")
+        return g.returncode == 0, (s.stdout + g.stdout + g.stderr).strip()
+    except (OSError, subprocess.SubprocessError) as hata:
         return False, str(hata)
 
 
 KOMUTLAR = {
+    "GitHub'dan son kayıtları al (ileri test)": ["git", "pull", "--rebase", "--autostash", "origin", "main"],
     "Fiyat ve makro veriyi güncelle": [sys.executable, "-m", "src.data.guncelle"],
     "İleri test kayıtlarını doğrula": [sys.executable, "-m", "src.ileri_test.gunluk", "--dogrula"],
     "İleri test Excel'ini yeniden üret": [sys.executable, "-m", "src.ileri_test.gunluk", "--excel"],
