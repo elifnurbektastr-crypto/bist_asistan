@@ -19,7 +19,9 @@ def goster() -> None:
     kod = sol.selectbox("Hisse", ortak.kodlar(), index=ortak.kodlar().index("THYAO"), key="analiz_kod")
     donem = sag.radio("Dönem", list(DONEMLER), index=2, horizontal=True, key="analiz_donem")
 
-    df = p["veri"][config.yf_sembol(kod)]
+    gunluk_df = p["veri"][config.yf_sembol(kod)]
+    df = ortak.gunluk_canli(gunluk_df, kod)          # seans içindeyse bugünkü (kesinleşmemiş) gün eklenir
+    canli = ortak.canli_ozet(kod)
     n = DONEMLER[donem]
     d = df.iloc[-(n + 1):] if n else df
     kur = p["kur"]["kapanis"].reindex(d.index, method="ffill") if p["kur"] is not None else None
@@ -27,7 +29,11 @@ def goster() -> None:
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
     gunluk = df["duz_kapanis"].iloc[-1] / df["duz_kapanis"].iloc[-2] - 1
-    k1.metric("Son fiyat", f"{df['kapanis'].iloc[-1]:,.2f} ₺", f"{gunluk:+.2%}")
+    if canli is not None and canli["zaman"].normalize() >= gunluk_df.index[-1]:
+        k1.metric(f"Son fiyat · {canli['zaman']:%H:%M}", f"{canli['son_fiyat']:,.2f} ₺", f"{canli['degisim']:+.2%}",
+                  help="15 dakika gecikmeli gün içi fiyat; değişim önceki günün kapanışına göre.")
+    else:
+        k1.metric("Son fiyat (kapanış)", f"{df['kapanis'].iloc[-1]:,.2f} ₺", f"{gunluk:+.2%}")
     tl = d["duz_kapanis"].iloc[-1] / d["duz_kapanis"].iloc[0] - 1
     k2.metric(f"Getiri ({donem}, TL)", f"{tl:+.1%}")
     if kur is not None:
@@ -39,7 +45,7 @@ def goster() -> None:
 
     fig = go.Figure(go.Scatter(x=d.index, y=d["kapanis"], mode="lines", name=kod,
                                line=dict(color=ortak.RENKLER[0], width=2), hovertemplate="%{y:,.2f} ₺"))
-    st.plotly_chart(ortak.tema(fig, f"{kod} · kapanış fiyatı (gerçek işlem fiyatı, TL)", "TL"),
+    ortak.ciz(ortak.tema(fig, f"{kod} · kapanış fiyatı (gerçek işlem fiyatı, TL)", "TL"),
                     width="stretch")
 
     seriler = {f"{kod} (TL)": d["duz_kapanis"] / d["duz_kapanis"].iloc[0] - 1}
@@ -48,7 +54,7 @@ def goster() -> None:
         seriler[f"{kod} (USD)"] = usd_seri / usd_seri.iloc[0] - 1
     xu = p["endeks"]["duz_kapanis"].reindex(d.index).ffill()
     seriler["XU100 (TL)"] = xu / xu.iloc[0] - 1
-    st.plotly_chart(ortak.cizgiler(seriler, f"Dönem getirisi · {donem} (temettü ve bölünmeler dahil)", yuzde=True),
+    ortak.ciz(ortak.cizgiler(seriler, f"Dönem getirisi · {donem} (temettü ve bölünmeler dahil)", yuzde=True),
                     width="stretch")
     st.caption("TL ve USD getirisi arasındaki fark, aynı dönemdeki kur kaybını gösterir. "
                "Yüksek enflasyon döneminde TL getirisi yanıltıcı derecede yüksek görünebilir.")

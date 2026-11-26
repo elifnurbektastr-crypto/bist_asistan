@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 KOVA = "veri"
 MANIFEST = "manifest.json"
 # Uygulamanın okuduğu klasörler (ham Excel, admin veritabanı ve model dosyası buluta gitmez)
-KLASORLER = ["fiyat", "makro", "model", "backtest", "temettu"]
+KLASORLER = ["fiyat", "makro", "model", "backtest", "temettu", "anlik"]
 
 
 def ayarlar() -> dict:
@@ -49,13 +49,20 @@ def istemci(yazma: bool = False):
     return create_client(a["url"], anahtar)
 
 
-def yerel_manifest(veri_dizini: Path = config.VERI_DIZINI) -> dict[str, str]:
-    """Yüklenecek her dosyanın göreli yolu → SHA-256 parmak izi."""
+def yerel_manifest(veri_dizini: Path = config.VERI_DIZINI, klasorler: list[str] | None = None) -> dict[str, str]:
+    """Yüklenecek her dosyanın göreli yolu → SHA-256 parmak izi (klasorler verilirse sadece onlar)."""
     sonuc = {}
-    for klasor in KLASORLER:
+    for klasor in klasorler or KLASORLER:
         for yol in sorted((veri_dizini / klasor).glob("*.parquet")):
             sonuc[f"{klasor}/{yol.name}"] = hashlib.sha256(yol.read_bytes()).hexdigest()
     return sonuc
+
+
+def alt_kume(manifest: dict[str, str], klasorler: list[str] | None) -> dict[str, str]:
+    """Manifestten sadece verilen klasörlerin dosyaları."""
+    if not klasorler:
+        return dict(manifest)
+    return {y: h for y, h in manifest.items() if y.split("/", 1)[0] in klasorler}
 
 
 def farklar(kaynak: dict[str, str], hedef: dict[str, str]) -> tuple[list[str], list[str]]:
@@ -72,11 +79,17 @@ def _bulut_manifest(kova) -> dict[str, str]:
         return {}
 
 
-def yukle(veri_dizini: Path = config.VERI_DIZINI) -> int:
-    """Değişen dosyaları buluta yükler; dönen değer yüklenen dosya sayısı."""
+def yukle(veri_dizini: Path = config.VERI_DIZINI, klasorler: list[str] | None = None) -> int:
+    """Değişen dosyaları buluta yükler; dönen değer yüklenen dosya sayısı.
+
+    klasorler verilirse sadece onlar aktarılır; buluttaki diğer dosyaların kayıtları korunur
+    (ör. canlı veri görevi 15 dakikada bir sadece 'anlik' klasörünü yükler).
+    """
     kova = istemci(yazma=True).storage.from_(KOVA)
-    yerel = yerel_manifest(veri_dizini)
-    aktar, sil = farklar(yerel, _bulut_manifest(kova))
+    bulut = _bulut_manifest(kova)
+    yerel_kisim = yerel_manifest(veri_dizini, klasorler)
+    aktar, sil = farklar(yerel_kisim, alt_kume(bulut, klasorler))
+    yerel = {**{y: h for y, h in bulut.items() if y not in alt_kume(bulut, klasorler)}, **yerel_kisim}
     for yol in aktar:
         kova.upload(yol, (veri_dizini / yol).read_bytes(),
                     {"content-type": "application/octet-stream", "upsert": "true"})
@@ -86,15 +99,16 @@ def yukle(veri_dizini: Path = config.VERI_DIZINI) -> int:
               "dosyalar": yerel}
     kova.upload(MANIFEST, json.dumps(icerik, indent=1).encode(),
                 {"content-type": "application/json", "upsert": "true"})
-    log.info("Buluta yüklendi: %d dosya (%d silindi, %d değişmedi).", len(aktar), len(sil), len(yerel) - len(aktar))
+    log.info("Buluta yüklendi: %d dosya (%d silindi, %d değişmedi).", len(aktar), len(sil),
+             len(yerel_kisim) - len(aktar))
     return len(aktar)
 
 
-def indir(veri_dizini: Path = config.VERI_DIZINI) -> str | None:
-    """Buluttaki değişen dosyaları indirir. Dönen değer buluttaki son güncelleme zamanı."""
+def indir(veri_dizini: Path = config.VERI_DIZINI, klasorler: list[str] | None = None) -> str | None:
+    """Buluttaki değişen dosyaları indirir (klasorler verilirse sadece onlar). Dönen değer: son güncelleme."""
     kova = istemci().storage.from_(KOVA)
     icerik = json.loads(kova.download(MANIFEST))
-    aktar, _ = farklar(icerik["dosyalar"], yerel_manifest(veri_dizini))
+    aktar, _ = farklar(alt_kume(icerik["dosyalar"], klasorler), yerel_manifest(veri_dizini, klasorler))
     # Dosyanın zamanı = verinin gerçekte güncellendiği an (indirme anı değil). Yoksa günlük görev
     # "bu dosyalar az önce yazıldı" sanıp Yahoo'dan yeni günü hiç istemez (önbellek tazelik kuralı).
     zaman = pd.Timestamp(icerik["guncelleme"]).timestamp() if icerik.get("guncelleme") else None

@@ -18,6 +18,7 @@ from app.sekmeler import analiz, backtest, grafik, model, temettu  # noqa: E402
 
 
 def main() -> None:
+    ortak.mobil_stil()
     ortak.kenar_cubugu()
     st.title("📈 BIST Yatırım Araştırma Asistanı")
     ortak.duyurular()
@@ -32,6 +33,7 @@ def main() -> None:
         backtest.goster()
     with sekmeler[4]:
         model.goster()
+    ortak.alt_bilgi()
 
 
 main()

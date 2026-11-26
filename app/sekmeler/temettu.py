@@ -52,12 +52,14 @@ def goster() -> None:
         fig = go.Figure(go.Bar(
             x=ilk["son12ay_verim"], y=ilk.index, orientation="h", marker_color=ortak.RENKLER[0],
             text=[f"%{v * 100:.1f} · {tl:.2f} ₺" for v, tl in zip(ilk["son12ay_verim"], ilk["son12ay_tl"])],
-            textposition="outside", hovertemplate="%{y}: %{x:.1%}<extra></extra>"))
+            textposition="outside", cliponaxis=False, hovertemplate="%{y}: %{x:.1%}<extra></extra>"))
         ortak.tema(fig, "Temettü verimi en yüksek hisseler (filtreye göre)", yukseklik=60 + 28 * len(ilk))
-        fig.update_xaxes(tickformat=".0%", gridcolor=ortak.IZGARA, showgrid=True)
+        # Etiketler çubuğun sağına yazılır: en uzun çubuğun etiketi sığsın diye eksen %45 uzatılır
+        fig.update_xaxes(tickformat=".0%", gridcolor=ortak.IZGARA, showgrid=True,
+                         range=[0, float(ilk["son12ay_verim"].max()) * 1.45])
         fig.update_yaxes(showgrid=False)
         fig.update_layout(hovermode="closest")
-        st.plotly_chart(fig, width="stretch")
+        ortak.ciz(fig, width="stretch")
 
     st.subheader("Hisse bazında ödeme geçmişi")
     sol, sag = st.columns([1, 1])

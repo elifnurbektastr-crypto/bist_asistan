@@ -66,7 +66,7 @@ def _tek_hisse() -> None:
         satirlar[ad] = metrics.ozet(t["strateji_getirisi"], faiz, t["pozisyon"], t["varlik_getirisi"], kur)
     if not egriler:
         return
-    st.plotly_chart(ortak.cizgiler(egriler, f"{kod} · birikimli getiri ({para})", yuzde=True), width="stretch")
+    ortak.ciz(ortak.cizgiler(egriler, f"{kod} · birikimli getiri ({para})", yuzde=True), width="stretch")
     tablo = pd.DataFrame(satirlar).T.rename(columns=METRIK_ADLARI)
     yuzdeler = [c for c in tablo.columns if c not in ("Sharpe", "İşlem sayısı")]
     st.dataframe(tablo.style.format({**{c: "{:.1%}" for c in yuzdeler}, "Sharpe": "{:.2f}", "İşlem sayısı": "{:.0f}"}),
@@ -87,7 +87,7 @@ def _portfoy() -> None:
     st.error("**Sonuç:** ML portföyü maliyetler düşüldükten sonra eşit ağırlıklı portföyün ve rastgele seçimin "
              "gerisinde kaldı. Model sinyali bu dönemde bir avantaj sağlamadı.", icon="📉")
     egriler = (1 + getiriler.fillna(0)).cumprod()
-    st.plotly_chart(ortak.cizgiler({c: egriler[c] for c in egriler.columns}, "Sermaye eğrisi (TL, başlangıç = 1)",
+    ortak.ciz(ortak.cizgiler({c: egriler[c] for c in egriler.columns}, "Sermaye eğrisi (TL, başlangıç = 1)",
                                    log=True, etiket=False), width="stretch")
     goster = ozet.rename(columns=METRIK_ADLARI | {"maks_dusus_usd": "Maks. düşüş (USD)",
                                                    "ort_hisse_payi": "Ort. hissede kalma",

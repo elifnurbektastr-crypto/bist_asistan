@@ -90,11 +90,16 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   const div = document.getElementById("grafik");
   const durumYazi = document.getElementById("durum");
   const ipucu = document.getElementById("ipucu");
-  let kod = null, mod = "pan", dinleyicilerHazir = false, ciziliyor = false, gizliCizimler = [];
+  // Dokunmatik ekranda varsayılan "İncele": sürükleme sayfayı kaydırır (Kaydır modunda grafik yakalardı)
+  const DOKUNMATIK = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+  const DAR = window.matchMedia("(max-width: 640px)").matches;
+  let kod = null, mod = DOKUNMATIK ? "incele" : "pan", dinleyicilerHazir = false, ciziliyor = false, gizliCizimler = [];
   let bekleyenArgs = null;   // sekme gizliyken gelen çizim isteği (görünür olunca çizilir)
 
   const IPUCLARI = {
-    pan: "Grafiği sürükleyerek kaydırın, fare tekerleğiyle yakınlaştırın. Bir çizime tıklayarak seçebilir ve sürükleyebilirsiniz.",
+    incele: "Mumlara dokunarak değerleri görün; sayfa normal kaydırılır. Grafiği kaydırmak için ✋.",
+    pan: DOKUNMATIK ? "Grafiği parmakla sürükleyerek kaydırın." :
+      "Grafiği sürükleyerek kaydırın, fare tekerleğiyle yakınlaştırın. Bir çizime tıklayarak seçebilir ve sürükleyebilirsiniz.",
     drawline: "Başlangıç noktasından bitiş noktasına sürükleyin.",
     yatay: "Fiyat grafiğinde istediğiniz seviyeye tıklayın.",
     drawrect: "Bölgenin bir köşesinden karşı köşesine sürükleyin.",
@@ -114,7 +119,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       date: "%d.%m.%Y", decimal: ",", thousands: ".",
     },
   });
-  const CONFIG = { displaylogo: false, responsive: true, scrollZoom: true, locale: "tr",
+  const CONFIG = { displaylogo: false, responsive: true, scrollZoom: !DOKUNMATIK, locale: "tr",
+                   displayModeBar: DAR ? false : "hover",
                    modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toImage"],
                    modeBarButtonsToAdd: ["eraseshape"] };
 
@@ -142,6 +148,11 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     yaz(kod, temizle((div.layout && div.layout.shapes) || []).concat(gizliCizimler));
   }
 
+  function dragmodeIcin(m) {
+    if (m === "incele") return false;
+    return m === "yatay" ? "pan" : m;
+  }
+
   function modSec(yeni) {
     mod = yeni;
     document.querySelectorAll("button[data-mod]").forEach((b) => {
@@ -149,7 +160,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       b.setAttribute("aria-pressed", b.dataset.mod === yeni);
     });
     ipucu.textContent = IPUCLARI[yeni] || "";
-    if (div.layout) Plotly.relayout(div, { dragmode: yeni === "yatay" ? "pan" : yeni });
+    if (div.layout) Plotly.relayout(div, { dragmode: dragmodeIcin(yeni) });
   }
 
   function tiklandi(olay) {
@@ -180,7 +191,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     const ayrim = eksenSuz(oku(yeniKod), layout);
     gizliCizimler = ayrim.sakla;
     layout.shapes = ayrim.goster;
-    layout.dragmode = mod === "yatay" ? "pan" : mod;
+    layout.dragmode = dragmodeIcin(mod);
     layout.autosize = true;
     if (div.clientWidth > 0) layout.width = div.clientWidth;
     div.style.height = (layout.height || 600) + "px";
@@ -254,6 +265,6 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       Plotly.relayout(div, { width: genislik }).then(yukseklikBildir);
     }
   }).observe(document.body);
-  ipucu.textContent = IPUCLARI.pan;
+  modSec(mod);
   gonder("streamlit:componentReady", { apiVersion: 1 });
 }

@@ -14,7 +14,7 @@ import plotly.graph_objects as go  # noqa: E402
 import streamlit as st  # noqa: E402
 
 from src import bulut, config  # noqa: E402
-from src.data import cache, dividends  # noqa: E402
+from src.data import anlik, cache, dividends  # noqa: E402
 from src.depo import NOT_SINIRI, depo_al  # noqa: E402
 from src.models import deney  # noqa: E402
 
@@ -43,16 +43,28 @@ def _secrets_ortama_aktar() -> None:
         pass
 
 
-@st.cache_resource(ttl=3600, show_spinner="Veri buluttan alınıyor…")
-def bulut_verisi() -> str | None:
-    """Streamlit Cloud'da: değişen veri dosyalarını Supabase'den indirir (saatte en fazla bir kez)."""
+def _bulut_ayarli() -> bool:
     _secrets_ortama_aktar()
-    if not bulut.bulutta_mi():
+    a = bulut.ayarlar()
+    return bool(a["url"] and (a["publishable"] or a["secret"]))
+
+
+@st.cache_resource(ttl=900, show_spinner="Veri buluttan alınıyor…")
+def bulut_verisi() -> str | None:
+    """Supabase ayarlıysa (yerelde de, bulutta da) GitHub'daki günlük görevin topladığı veriyi indirir.
+
+    Sadece değişen dosyalar iner; 15 dakikada en fazla bir kez kontrol edilir. Bilgisayarda zamanlanmış
+    görev olmadığı için yerel önbellek ancak bu yolla güncel kalır.
+    """
+    if not _bulut_ayarli():
         return None
-    return bulut.indir()
+    try:
+        return bulut.indir()
+    except Exception:   # internet yoksa eldeki önbellekle devam et
+        return None
 
 
-@st.cache_data(ttl=3600, show_spinner="Veri yükleniyor…")
+@st.cache_data(ttl=900, show_spinner="Veri yükleniyor…")
 def piyasa_verisi() -> dict:
     """Hisseler, endeks, kur ve makro veri (sadece önbellekten; bulutta önce Supabase'den indirilir)."""
     bulut_verisi()
@@ -80,6 +92,142 @@ def onbellek_tablosu(ad: str, klasor: str) -> pd.DataFrame | None:
 
 def kodlar() -> list[str]:
     return sorted(s.replace(".IS", "") for s in piyasa_verisi()["veri"])
+
+
+MOBIL_STIL = """
+<style>
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"] { padding: 1.2rem 0.8rem 3rem; }
+  h1 { font-size: 1.45rem !important; line-height: 1.25 !important; padding-top: 0.2rem !important; }
+  [data-baseweb="tab"] { font-size: 0.85rem; padding: 0.4rem 0.5rem; }
+  /* Metrik satırları: telefonda ikişer ikişer yan yana (Streamlit normalde hepsini alt alta dizer) */
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) {
+    flex-wrap: wrap !important; gap: 0.6rem 0.8rem !important; }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {
+    flex: 1 1 calc(50% - 0.8rem) !important; width: calc(50% - 0.8rem) !important; min-width: calc(50% - 0.8rem) !important; }
+  [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+  [data-testid="stMetricLabel"] p { font-size: 0.8rem !important; }
+}
+</style>
+"""
+
+
+def mobil_stil() -> None:
+    """Dar ekranlar için stil kuralları (sadece ekran 640 pikselden darsa etkili olur)."""
+    st.markdown(MOBIL_STIL, unsafe_allow_html=True)
+
+
+def ciz(fig: go.Figure, **_) -> None:
+    """Bütün Plotly grafikleri buradan çizilir. Telefonda: başlık grafiğin üstüne metin olarak alınır
+    (Plotly başlığı kaydırmaz, kesilir), açıklama alta iner, yükseklik azalır, araç simgeleri gizlenir."""
+    if mobil_mi():
+        baslik = fig.layout.title.text
+        if baslik:
+            st.markdown(f"**{baslik}**")
+        fig.update_layout(title=None, height=min(fig.layout.height or 380, 320), annotations=[],
+                          margin=dict(l=4, r=8, t=10, b=10), font=dict(size=11),
+                          legend=dict(orientation="h", yanchor="top", y=-0.18, x=0))
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+    else:
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": "hover", "displaylogo": False})
+
+
+def alt_bilgi() -> None:
+    """Sayfanın en altı: yasal uyarı (telefonda yan menü kapalı geldiği için burada da gösterilir)."""
+    st.divider()
+    st.caption("⚠️ " + YASAL_UYARI.replace("**", ""))
+
+
+def mobil_mi() -> bool:
+    """Tarayıcı telefon/tablet mi? (User-Agent başlığına göre; test ortamında başlık yoksa False)."""
+    try:
+        ua = (st.context.headers.get("User-Agent") or "").lower()
+    except Exception:
+        return False
+    return any(k in ua for k in ("mobi", "android", "iphone", "ipad"))
+
+
+# ---------------------------------------------------------------------------
+# Canlı (gün içi, 15 dk gecikmeli) veri
+# ---------------------------------------------------------------------------
+
+@st.cache_data(ttl=300, show_spinner=False)
+def toplu_canli() -> pd.DataFrame | None:
+    """Bütün hisselerin 5 dakikalık mumları: GitHub'daki görevin 15 dakikada bir Supabase'e koyduğu kopya."""
+    if _bulut_ayarli():
+        try:
+            bulut.indir(klasorler=[anlik.KLASOR])
+        except Exception:
+            pass
+    return anlik.oku()
+
+
+@st.cache_resource
+def _yahoo_durumu() -> dict:
+    """Yahoo doğrudan isteği reddederse bir süre tekrar denenmez (sayfa donmasın)."""
+    return {"engel_bitis": pd.Timestamp(0, tz="UTC")}
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def canli_mumlar(kod: str) -> pd.DataFrame | None:
+    """Seçili hissenin 5 dakikalık mumları: önce Yahoo'dan doğrudan (8 sn), olmazsa toplu kopyadan."""
+    durum = _yahoo_durumu()
+    simdi = pd.Timestamp.now(tz="UTC")
+    if simdi >= durum["engel_bitis"]:
+        try:
+            t = anlik.yahoodan_cek([config.yf_sembol(kod)], zaman_asimi=8)
+        except Exception:
+            t = pd.DataFrame()
+        if len(t):
+            return t
+        durum["engel_bitis"] = simdi + pd.Timedelta(minutes=10)
+    toplu = toplu_canli()
+    if toplu is None or toplu.empty:
+        return None
+    t = toplu[toplu["kod"] == kod]
+    return t if len(t) else None
+
+
+def canli_ozet(kod: str) -> pd.Series | None:
+    """Seçili hissenin son fiyatı, değişimi ve saati (anlik.anlik_tablo satırı)."""
+    m = canli_mumlar(kod)
+    if m is None or m.empty:
+        return None
+    t = anlik.anlik_tablo(m)
+    return t.loc[kod] if kod in t.index else None
+
+
+def canli_durum_metni() -> str:
+    """Kenar çubuğu için: canlı verinin saati ya da neden olmadığı."""
+    toplu = toplu_canli()
+    if toplu is None or toplu.empty:
+        return "**Canlı veri:** henüz yok"
+    son = toplu["zaman"].max()
+    simdi = pd.Timestamp.now(tz=config.SAAT_DILIMI).tz_localize(None)
+    seans_acik = simdi.dayofweek < 5 and 10 <= simdi.hour < 18
+    if seans_acik and simdi - son > pd.Timedelta(minutes=45):
+        return f"**Canlı veri:** {son:%d.%m %H:%M} · ⚠️ gecikmiş"
+    return f"**Canlı veri:** {son:%d.%m %H:%M} · 🟢 15 dk gecikmeli" if seans_acik else \
+        f"**Son işlem:** {son:%d.%m %H:%M} · seans kapalı"
+
+
+def gunluk_canli(df: pd.DataFrame, kod: str) -> pd.DataFrame:
+    """Günlük tabloya, henüz kesinleşmemiş bugünkü (ya da en son) mumu gün içi veriden ekler.
+
+    Sadece görüntüleme içindir; model ve backtest bu satırı görmez.
+    """
+    m = canli_mumlar(kod)
+    if m is None:
+        return df
+    mum = anlik.bugunku_mum(m, kod)
+    if mum is None or mum.name <= df.index[-1]:
+        return df
+    yeni = pd.DataFrame([mum.to_dict()], index=[mum.name])
+    for s in ["acilis", "yuksek", "dusuk", "kapanis"]:
+        yeni[f"duz_{s}"] = yeni[s]
+    yeni["bolunme"] = 0.0
+    yeni["temettu"] = yeni["temettu_duz"] = 0.0
+    return pd.concat([df, yeni[df.columns.intersection(yeni.columns)]])
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +314,7 @@ def kenar_cubugu() -> None:
     with st.sidebar:
         st.markdown("### 📈 BIST Araştırma Asistanı")
         st.caption("Veri analizi · makine öğrenmesi · backtest · grafik aracı")
-        st.markdown(f"**Son veri:** {p['son_tarih']:%d.%m.%Y}  \n**Hisse:** {len(p['veri'])} (BIST 100)")
-        st.caption("Kaynaklar: Yahoo Finance (gecikmeli), TCMB EVDS")
+        st.markdown(f"**Kesinleşmiş kapanış:** {p['son_tarih']:%d.%m.%Y}  \n**Hisse:** {len(p['veri'])} (BIST 100)")
+        st.markdown(canli_durum_metni())
+        st.caption("Kaynaklar: Yahoo Finance (15 dk gecikmeli), TCMB EVDS. Gerçek zamanlı BIST verisi lisanslıdır.")
         st.warning(YASAL_UYARI, icon="⚠️")

@@ -102,7 +102,7 @@ def geri_bildirimler() -> None:
         go.Bar(name="👎", y=ozet.index, x=ozet["begenmeme"], orientation="h", marker_color=ortak.RENKLER[1]),
     ])
     fig.update_layout(barmode="group", hovermode="closest")
-    st.plotly_chart(ortak.tema(fig, "Sekme bazında geri bildirim", yukseklik=120 + 50 * len(ozet)),
+    ortak.ciz(ortak.tema(fig, "Sekme bazında geri bildirim", yukseklik=120 + 50 * len(ozet)),
                     width="stretch")
     sekme = st.selectbox("Sekme", ["Tümü"] + sorted(gb["sekme"].unique()))
     sadece_notlu = st.checkbox("Sadece not yazılanlar", True)

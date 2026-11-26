@@ -18,6 +18,7 @@ RENKLER = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6"]   #
 YUKSELIS, DUSUS = "#1baf7a", "#e34948"
 METIN, IKINCIL, IZGARA, ZEMIN = "#0b0b0b", "#52514e", "#ebeae6", "#fcfcfb"
 ARALIKLAR = {"Günlük": None, "Haftalık": "W-FRI", "Aylık": "ME"}
+GUN_ICI_ARALIKLAR = {"5 dakika": None, "15 dakika": "15min", "1 saat": "60min"}
 MAKS_CIZGI = 6
 
 
@@ -47,6 +48,20 @@ def yeniden_ornekle(ohlc: pd.DataFrame, aralik: str) -> pd.DataFrame:
     son_gunler = ohlc["kapanis"].groupby(pd.Grouper(freq=kural)).apply(lambda s: s.index.max()).dropna()
     sonuc.index = pd.DatetimeIndex(son_gunler.reindex(sonuc.index).values)
     return sonuc
+
+
+def gun_ici_ohlc(mumlar: pd.DataFrame, aralik: str) -> pd.DataFrame:
+    """Bir hissenin 5 dakikalık mumlarını (zaman sütunlu) seçilen gün içi aralığa çevirir.
+
+    Her gün kendi içinde gruplanır; bir günün son mumu ertesi güne taşmaz.
+    """
+    ohlc = mumlar.set_index("zaman")[["acilis", "yuksek", "dusuk", "kapanis", "hacim"]].sort_index()
+    kural = GUN_ICI_ARALIKLAR[aralik]
+    if kural is None:
+        return ohlc
+    return (ohlc.resample(kural, origin="start_day")
+                .agg({"acilis": "first", "yuksek": "max", "dusuk": "min", "kapanis": "last", "hacim": "sum"})
+                .dropna(subset=["kapanis"]))
 
 
 def macd(kapanis: pd.Series, hizli: int = 12, yavas: int = 26, sinyal: int = 9) -> pd.DataFrame:
@@ -80,13 +95,15 @@ def eksik_gunler(index: pd.DatetimeIndex) -> list[str]:
 
 def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gun: int | None = 252,
                   ma: list[int] = (), ema: list[int] = (), bollinger_acik: bool = False,
-                  rsi_acik: bool = False, macd_acik: bool = False) -> dict:
+                  rsi_acik: bool = False, macd_acik: bool = False, gun_ici: pd.DataFrame | None = None,
+                  mobil: bool = False) -> dict:
     """Mum grafiği + indikatörler. Plotly JSON tanımı döner (bileşene gönderilir).
 
     İndikatörler tüm geçmiş üzerinde hesaplanır, sonra dönem kesilir: böylece MA200 gibi uzun
     ortalamalar dönemin ilk gününden itibaren doğru değer gösterir.
     """
-    ohlc = yeniden_ornekle(bolunme_duzeltilmis(df), aralik)
+    # gun_ici verilirse (5 dk / 15 dk / 1 saat) df yerine o mumlar çizilir
+    ohlc = gun_ici if gun_ici is not None else yeniden_ornekle(bolunme_duzeltilmis(df), aralik)
     k = ohlc["kapanis"]
     ust_cizgiler = {}
     for n in ma:
@@ -98,7 +115,7 @@ def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gu
     r = rsi(k) if rsi_acik else None
     m = macd(k) if macd_acik else None
 
-    if donem_gun:
+    if donem_gun and gun_ici is None:
         bas = ohlc.index[-min(len(ohlc), max(1, int(donem_gun / {"Günlük": 1, "Haftalık": 5, "Aylık": 21}[aralik])))]
         kes = lambda s: s.loc[bas:]   # noqa: E731
     else:
@@ -110,7 +127,7 @@ def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gu
     oranlar = [yukseklikler[p] for p in paneller]
     fig = make_subplots(rows=len(paneller), cols=1, shared_xaxes=True, vertical_spacing=0.025,
                         row_heights=[o / sum(oranlar) for o in oranlar])
-    x = ohlc.index.strftime("%Y-%m-%d")
+    x = ohlc.index.strftime("%Y-%m-%d %H:%M" if gun_ici is not None else "%Y-%m-%d")
 
     fig.add_trace(go.Candlestick(
         x=x, open=ohlc["acilis"], high=ohlc["yuksek"], low=ohlc["dusuk"], close=ohlc["kapanis"], name=kod,
@@ -150,10 +167,13 @@ def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gu
         paneller_etiket.append((satir, "MACD (12, 26, 9)"))
 
     araliklar = [dict(bounds=["sat", "mon"])]
-    if aralik == "Günlük":
+    if gun_ici is not None:
+        araliklar.append(dict(bounds=[18.25, 10], pattern="hour"))   # seans dışı saatler (gece) boşluk olmasın
+    elif aralik == "Günlük":
         araliklar.append(dict(values=eksik_gunler(ohlc.index)))
-    fig.update_xaxes(rangebreaks=araliklar if aralik == "Günlük" else [], showgrid=False,
-                     rangeslider_visible=False, linecolor="#c9c8c3", hoverformat="%d.%m.%Y")
+    fig.update_xaxes(rangebreaks=araliklar if (aralik == "Günlük" or gun_ici is not None) else [],
+                     showgrid=False, rangeslider_visible=False, linecolor="#c9c8c3",
+                     hoverformat="%d.%m.%Y %H:%M" if gun_ici is not None else "%d.%m.%Y")
     fig.update_yaxes(gridcolor=IZGARA, zeroline=False, side="right", ticks="outside", ticklen=4,
                      tickcolor="rgba(0,0,0,0)", automargin=True)
     fig.update_yaxes(showticklabels=False, row=2, col=1)
@@ -162,8 +182,9 @@ def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gu
         fig.add_annotation(text=etiket, xref="paper", x=0.002, yref=f"{eksen} domain", y=0.98, showarrow=False,
                            xanchor="left", yanchor="top", font=dict(size=11, color=IKINCIL))
     fig.update_layout(
-        height=480 + 130 * (len(paneller) - 2), margin=dict(l=10, r=70, t=30, b=40),
-        paper_bgcolor=ZEMIN, plot_bgcolor=ZEMIN, font=dict(color=IKINCIL, size=12),
+        height=(360 + 100 * (len(paneller) - 2)) if mobil else (480 + 130 * (len(paneller) - 2)),
+        margin=dict(l=4, r=46, t=26, b=30) if mobil else dict(l=10, r=70, t=30, b=40),
+        paper_bgcolor=ZEMIN, plot_bgcolor=ZEMIN, font=dict(color=IKINCIL, size=11 if mobil else 12),
         hovermode="x unified", dragmode="pan", showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0, traceorder="normal"),
         newshape=dict(line=dict(color="#6250d6", width=2), fillcolor="rgba(98,80,214,0.12)"),

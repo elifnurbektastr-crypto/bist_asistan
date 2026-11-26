@@ -16,22 +16,31 @@
     .ayrac { width: 1px; height: 22px; background: var(--kenar); margin: 0 4px; }
     #durum { font-size: 12px; color: var(--ikincil); margin-left: 6px; }
     #ipucu { font-size: 12px; color: var(--ikincil); padding: 0 0 4px; min-height: 16px; }
+    /* Telefon: düğmelerde sadece simge, daha sıkı yerleşim */
+    @media (max-width: 640px) {
+      .etiket { display: none; }
+      button, .dugme { padding: 6px 9px; font-size: 15px; }
+      #arac-cubugu { gap: 4px; }
+      .ayrac { display: none; }
+      #durum { width: 100%; margin-left: 0; }
+    }
   </style>
   <script src="plotly.min.js"></script>
 </head>
 <body>
   <div id="arac-cubugu" role="toolbar" aria-label="Çizim araçları">
-    <button data-mod="pan" class="aktif" title="Grafiği sürükle, tekerlekle yakınlaştır">✋ Kaydır</button>
-    <button data-mod="drawline" title="İki nokta arasında çizgi">📈 Trend çizgisi</button>
-    <button data-mod="yatay" title="Fiyat grafiğine tıkla: o seviyede yatay çizgi">➖ Yatay çizgi</button>
-    <button data-mod="drawrect" title="Sürükleyerek bölge işaretle">▭ Bölge</button>
-    <button data-mod="drawopenpath" title="Serbest çizim">✏️ Serbest</button>
+    <button data-mod="incele" title="Dokunduğun mumun bilgisi; sayfa kaydırılabilir" aria-label="İncele">👆<span class="etiket"> İncele</span></button>
+    <button data-mod="pan" title="Grafiği sürükle, tekerlekle yakınlaştır" aria-label="Kaydır">✋<span class="etiket"> Kaydır</span></button>
+    <button data-mod="drawline" title="İki nokta arasında çizgi" aria-label="Trend çizgisi">📈<span class="etiket"> Trend çizgisi</span></button>
+    <button data-mod="yatay" title="Fiyat grafiğine tıkla: o seviyede yatay çizgi" aria-label="Yatay çizgi">➖<span class="etiket"> Yatay çizgi</span></button>
+    <button data-mod="drawrect" title="Sürükleyerek bölge işaretle" aria-label="Bölge">▭<span class="etiket"> Bölge</span></button>
+    <button data-mod="drawopenpath" title="Serbest çizim" aria-label="Serbest çizim">✏️<span class="etiket"> Serbest</span></button>
     <span class="ayrac"></span>
-    <button id="sil" title="Önce bir çizime tıklayıp seç, sonra sil">🧽 Seçiliyi sil</button>
-    <button id="temizle" title="Bu hissedeki tüm çizimleri sil">🗑️ Tümünü sil</button>
+    <button id="sil" title="Önce bir çizime tıklayıp seç, sonra sil" aria-label="Seçiliyi sil">🧽<span class="etiket"> Seçiliyi sil</span></button>
+    <button id="temizle" title="Bu hissedeki tüm çizimleri sil" aria-label="Tümünü sil">🗑️<span class="etiket"> Tümünü sil</span></button>
     <span class="ayrac"></span>
-    <button id="indir" title="Bu hissenin çizimlerini JSON dosyası olarak indir">⬇️ JSON indir</button>
-    <label class="dugme" title="Daha önce indirdiğin JSON dosyasını yükle">⬆️ JSON yükle
+    <button id="indir" title="Bu hissenin çizimlerini JSON dosyası olarak indir" aria-label="JSON indir">⬇️<span class="etiket"> JSON indir</span></button>
+    <label class="dugme" title="Daha önce indirdiğin JSON dosyasını yükle" aria-label="JSON yükle">⬆️<span class="etiket"> JSON yükle</span>
       <input type="file" id="yukle" accept=".json,application/json" hidden>
     </label>
     <span id="durum" aria-live="polite"></span>
