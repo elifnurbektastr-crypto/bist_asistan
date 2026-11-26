@@ -14,7 +14,7 @@ lightgbm>=4.3
 
 # --- Arayüz ---
 plotly>=5.20
-streamlit>=1.40
+streamlit>=1.67         # tema algılama (st.context.theme), fragment yenileme
 
 # --- Bulut (duyurular, geri bildirimler, veri dosyaları) ---
 supabase>=2.10
