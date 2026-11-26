@@ -147,10 +147,12 @@ def gunluk() -> int:
     if len(zincir) and zincir["tarih"].iloc[-1] >= tarih.strftime("%Y-%m-%d"):
         log.info("%s tahmini zaten kayıtlı; yeni işlem günü yok.", tarih.date())
         excel_guncelle(veri)
+        yayinla()   # tahmin olmasa da güncellenen veri siteye gitsin
         return 0
     if pd.Timestamp.now(tz=config.SAAT_DILIMI) > kayit.son_gecerli_zaman(tarih):
         log.warning("%s için tahmin süresi doldu (seans açıldı); bu gün KAÇIRILDI.", tarih.date())
         excel_guncelle(veri)
+        yayinla()
         return 0
 
     tablo = veri_seti_olustur(guncel, endeks, kur, cache.oku("evds", "makro"))
