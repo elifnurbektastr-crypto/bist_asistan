@@ -107,7 +107,8 @@ def indir(veri_dizini: Path = config.VERI_DIZINI) -> str | None:
 
 
 def bulutta_mi() -> bool:
-    """Uygulama Streamlit Cloud'da mı çalışıyor? (Secrets'ta BIST_BULUT = "1")"""
+    """Uygulama Streamlit Cloud'da mı çalışıyor? (Secrets'ta ya da .env'de BIST_BULUT = "1")"""
+    ayarlar()   # .env'i yükler (ortamda zaten olan değerleri ezmez)
     return os.getenv("BIST_BULUT") == "1"
 
 

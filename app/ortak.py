@@ -1,6 +1,7 @@
 """Sekmelerin ortak kullandığı parçalar: veri yükleme (önbellekli), grafik teması, duyuru, geri bildirim."""
 
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -29,9 +30,23 @@ YASAL_UYARI = ("Bu uygulama eğitim ve portföy amaçlıdır; **yatırım tavsiy
 # Veri (internete gitmez; veriyi admin tarafı günceller)
 # ---------------------------------------------------------------------------
 
+GIZLI_AYARLAR = ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "BIST_BULUT")
+
+
+def _secrets_ortama_aktar() -> None:
+    """Streamlit Cloud 'Secrets' değerlerini ortam değişkenlerine aktarır (src/ modülleri os.getenv okur)."""
+    try:
+        for ad in GIZLI_AYARLAR:
+            if ad in st.secrets and not os.getenv(ad):
+                os.environ[ad] = str(st.secrets[ad])
+    except Exception:   # yerelde secrets.toml yoksa st.secrets hata verir; .env kullanılır
+        pass
+
+
 @st.cache_resource(ttl=3600, show_spinner="Veri buluttan alınıyor…")
 def bulut_verisi() -> str | None:
     """Streamlit Cloud'da: değişen veri dosyalarını Supabase'den indirir (saatte en fazla bir kez)."""
+    _secrets_ortama_aktar()
     if not bulut.bulutta_mi():
         return None
     return bulut.indir()
