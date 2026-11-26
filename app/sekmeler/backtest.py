@@ -66,11 +66,11 @@ def _tek_hisse() -> None:
         satirlar[ad] = metrics.ozet(t["strateji_getirisi"], faiz, t["pozisyon"], t["varlik_getirisi"], kur)
     if not egriler:
         return
-    st.plotly_chart(ortak.cizgiler(egriler, f"{kod} · birikimli getiri ({para})", yuzde=True), use_container_width=True)
+    st.plotly_chart(ortak.cizgiler(egriler, f"{kod} · birikimli getiri ({para})", yuzde=True), width="stretch")
     tablo = pd.DataFrame(satirlar).T.rename(columns=METRIK_ADLARI)
     yuzdeler = [c for c in tablo.columns if c not in ("Sharpe", "İşlem sayısı")]
     st.dataframe(tablo.style.format({**{c: "{:.1%}" for c in yuzdeler}, "Sharpe": "{:.2f}", "İşlem sayısı": "{:.0f}"}),
-                 use_container_width=True)
+                 width="stretch")
     st.caption("Sinyal gün sonunda üretilir, işlem ertesi gün açılışında yapılır. Sharpe oranında risksiz faiz "
                "olarak politika faizi kullanılır. ML sinyali geçmiş walk-forward tahminleridir (görülmemiş veri).")
 
@@ -88,16 +88,16 @@ def _portfoy() -> None:
              "gerisinde kaldı. Model sinyali bu dönemde bir avantaj sağlamadı.", icon="📉")
     egriler = (1 + getiriler.fillna(0)).cumprod()
     st.plotly_chart(ortak.cizgiler({c: egriler[c] for c in egriler.columns}, "Sermaye eğrisi (TL, başlangıç = 1)",
-                                   log=True, etiket=False), use_container_width=True)
+                                   log=True, etiket=False), width="stretch")
     goster = ozet.rename(columns=METRIK_ADLARI | {"maks_dusus_usd": "Maks. düşüş (USD)",
                                                    "ort_hisse_payi": "Ort. hissede kalma",
                                                    "toplam_maliyet": "Toplam maliyet"})
     sayilar = [c for c in goster.columns if c != "Sharpe"]
     st.dataframe(goster.style.format({**{c: "{:.1%}" for c in sayilar}, "Sharpe": "{:.2f}"}, na_rep="–"),
-                 use_container_width=True)
+                 width="stretch")
     yillik = (1 + getiriler).groupby(getiriler.index.year).prod() - 1
     with st.expander("Yıllık getiriler"):
-        st.dataframe(yillik.style.format("{:.1%}"), use_container_width=True)
+        st.dataframe(yillik.style.format("{:.1%}"), width="stretch")
     st.caption("Not: 81 hisse bugünkü BIST 100'den seçildiği için eşit ağırlıklı portföy survivorship bias "
                "nedeniyle olduğundan iyi görünür; adil karşılaştırma aynı evrendeki portföyler arasındadır.")
 

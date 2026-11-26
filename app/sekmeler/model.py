@@ -64,7 +64,7 @@ def goster() -> None:
         sol, sag = st.columns([3, 2])
         with sag:
             st.dataframe(ozet.style.format({"Doğruluk": "{:.1%}", "AUC": "{:.3f}"}, na_rep="–"),
-                         use_container_width=True)
+                         width="stretch")
         with sol:
             fig = go.Figure()
             for i, m in enumerate(["lightgbm_ince_ayar", "hep_yukselir"]):
@@ -73,7 +73,7 @@ def goster() -> None:
                                              line=dict(color=ortak.RENKLER[i], width=2), marker=dict(size=8),
                                              hovertemplate="%{y:.1%}"))
             fig.add_hline(y=0.5, line=dict(color="#8a8984", dash="dot", width=1))
-            st.plotly_chart(ortak.tema(fig, "Yıllara göre isabet", y_yuzde=True), use_container_width=True)
+            st.plotly_chart(ortak.tema(fig, "Yıllara göre isabet", y_yuzde=True), width="stretch")
 
     st.subheader("İleri test (gerçek zamanlı)")
     it = _ileri_test_ozeti()

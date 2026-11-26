@@ -41,7 +41,7 @@ def goster() -> None:
             "kalan_gun": st.column_config.NumberColumn("Kalan gün"),
             "durum": st.column_config.TextColumn("Durum"),
         })
-    st.dataframe(secili, column_config=sutunlar, use_container_width=True, height=380)
+    st.dataframe(secili, column_config=sutunlar, width="stretch", height=380)
     if yaklasan_var:
         st.caption("*Yaklaşan tarihler Yahoo Finance'ten gelir ve **doğrulanmamıştır**; resmi kaynak KAP'tır.")
     else:
@@ -57,7 +57,7 @@ def goster() -> None:
         fig.update_xaxes(tickformat=".0%", gridcolor=ortak.IZGARA, showgrid=True)
         fig.update_yaxes(showgrid=False)
         fig.update_layout(hovermode="closest")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.subheader("Hisse bazında ödeme geçmişi")
     sol, sag = st.columns([1, 1])
@@ -69,7 +69,7 @@ def goster() -> None:
     else:
         gecmis = gecmis.assign(adet_icin_brut=gecmis["tl_bugunku"] * lot)
         gecmis.index = gecmis.index.strftime("%d.%m.%Y")
-        st.dataframe(gecmis, use_container_width=True, column_config={
+        st.dataframe(gecmis, width="stretch", column_config={
             "tl": st.column_config.NumberColumn("O gün hisse başı (₺)", format="%.4f"),
             "tl_bugunku": st.column_config.NumberColumn("Bugünkü hisse bazında (₺)", format="%.4f"),
             "onceki_kapanis": st.column_config.NumberColumn("Önceki kapanış (₺)", format="%.2f"),

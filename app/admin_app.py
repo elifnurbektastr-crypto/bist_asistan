@@ -52,7 +52,7 @@ def durum() -> None:
     c2.metric("Güncel olmayan hisse", len(eski))
     if len(supheli):
         st.warning("Şüpheli sıçrama var: 'Elle veri girişi' sayfasından KAP oranını girin.")
-        st.dataframe(supheli[["supheli_sicrama", "son_tarih"]], use_container_width=True)
+        st.dataframe(supheli[["supheli_sicrama", "son_tarih"]], width="stretch")
     if len(eski):
         st.warning(f"Güncel olmayan hisseler: {', '.join(i.replace('.IS', '') for i in eski.index)}")
 
@@ -103,14 +103,14 @@ def geri_bildirimler() -> None:
     ])
     fig.update_layout(barmode="group", hovermode="closest")
     st.plotly_chart(ortak.tema(fig, "Sekme bazında geri bildirim", yukseklik=120 + 50 * len(ozet)),
-                    use_container_width=True)
+                    width="stretch")
     sekme = st.selectbox("Sekme", ["Tümü"] + sorted(gb["sekme"].unique()))
     sadece_notlu = st.checkbox("Sadece not yazılanlar", True)
     goster = gb if sekme == "Tümü" else gb[gb["sekme"] == sekme]
     if sadece_notlu:
         goster = goster[goster["notu"].notna()]
     st.dataframe(goster.assign(puan=goster["puan"].map({1: "👍", -1: "👎"})),
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
 
 
 def guncel_tahminler() -> None:
@@ -123,7 +123,7 @@ def guncel_tahminler() -> None:
     son = tahminler["tahmin_tarihi"].max()
     st.markdown(f"**Son tahmin günü:** {son:%d.%m.%Y} · model {tahminler['model_surumu'].iloc[-1]}")
     gun = tahminler[tahminler["tahmin_tarihi"] == son].sort_values("yukselis_olasiligi", ascending=False)
-    st.dataframe(gun.drop(columns=["tahmin_tarihi", "model_surumu"]), use_container_width=True, hide_index=True,
+    st.dataframe(gun.drop(columns=["tahmin_tarihi", "model_surumu"]), width="stretch", hide_index=True,
                  column_config={"yukselis_olasiligi": st.column_config.ProgressColumn(
                      "Yükseliş olasılığı", format="%.3f", min_value=0, max_value=1),
                      "beklenen_vol_20": st.column_config.NumberColumn("Beklenen vol (20g)", format="percent"),
@@ -137,7 +137,7 @@ def guncel_tahminler() -> None:
     else:
         ozet = acik.groupby(["tahmin_tarihi", "sinyal"])["anlik_getiri"].agg(["count", "mean"]).unstack("sinyal")
         st.dataframe(ozet.style.format("{:.2%}", subset=[c for c in ozet.columns if c[0] == "mean"]),
-                     use_container_width=True)
+                     width="stretch")
     st.caption("Ayrıntılı tablo: ileri_test/ileri_test.xlsx")
 
 
@@ -148,7 +148,7 @@ def elle_veri() -> None:
                 "**Oran = 1 hissenin kaç hisse olduğu** (ör. %900 bedelsiz → 10). KAP duyurusundan doğrulayıp "
                 "kaynak sütununa duyuru linkini ya da numarasını yazın.")
     tablo = yonetim.duzeltmeleri_oku()
-    duzenlenen = st.data_editor(tablo, num_rows="dynamic", use_container_width=True, key="duzeltme_editor",
+    duzenlenen = st.data_editor(tablo, num_rows="dynamic", width="stretch", key="duzeltme_editor",
                                 column_config={"oran": st.column_config.NumberColumn("oran", min_value=0.0, format="%.4f")})
     c1, c2 = st.columns([1, 4])
     if c1.button("Kontrol et ve kaydet", type="primary"):
@@ -163,13 +163,13 @@ def elle_veri() -> None:
             st.success("Kaydedildi" + (" ve git'e commit'lendi." if ok else f"; git kaydı yapılamadı: {cikti[:200]}"))
     with st.expander("Yardım: düzeltme sonrası hâlâ şüpheli görünen günler"):
         kalan = pd.concat({s.replace(".IS", ""): quality.supheli_sicramalar(df) for s, df in p["veri"].items()})
-        st.dataframe(kalan, use_container_width=True) if len(kalan) else st.success("Şüpheli sıçrama kalmadı.")
+        st.dataframe(kalan, width="stretch") if len(kalan) else st.success("Şüpheli sıçrama kalmadı.")
 
     st.subheader("Hisse listesi (BIST 100)")
     st.caption("Liste değişirse yeni hisselerin verisi bir sonraki güncellemede indirilir. Dondurulmuş model "
                "yeni hisseler için ortak modeli kullanır.")
     evren = pd.read_csv(yonetim.EVREN_DOSYASI) if yonetim.EVREN_DOSYASI.exists() else pd.DataFrame({"kod": []})
-    yeni_evren = st.data_editor(evren, num_rows="dynamic", use_container_width=True, key="evren_editor", height=250)
+    yeni_evren = st.data_editor(evren, num_rows="dynamic", width="stretch", key="evren_editor", height=250)
     if st.button("Listeyi kontrol et ve kaydet"):
         kodlar = yeni_evren["kod"].dropna().astype(str).tolist()
         hatalar = yonetim.evren_dogrula(kodlar)
@@ -196,7 +196,7 @@ def veri_islemleri() -> None:
         with st.spinner("100 hisse için yaklaşan hak kullanım tarihleri alınıyor…"):
             t = dividends.yaklasan_temettuler(ortak.kodlar(), yenile=True)
         st.success(f"{(t['durum'] == 'yaklaşan').sum()} hissede yaklaşan tarih bulundu.")
-        st.dataframe(t[t["durum"] == "yaklaşan"].sort_values("kalan_gun"), use_container_width=True)
+        st.dataframe(t[t["durum"] == "yaklaşan"].sort_values("kalan_gun"), width="stretch")
         st.cache_data.clear()
 
 

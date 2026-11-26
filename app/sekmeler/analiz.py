@@ -40,7 +40,7 @@ def goster() -> None:
     fig = go.Figure(go.Scatter(x=d.index, y=d["kapanis"], mode="lines", name=kod,
                                line=dict(color=ortak.RENKLER[0], width=2), hovertemplate="%{y:,.2f} ₺"))
     st.plotly_chart(ortak.tema(fig, f"{kod} · kapanış fiyatı (gerçek işlem fiyatı, TL)", "TL"),
-                    use_container_width=True)
+                    width="stretch")
 
     seriler = {f"{kod} (TL)": d["duz_kapanis"] / d["duz_kapanis"].iloc[0] - 1}
     if kur is not None:
@@ -49,7 +49,7 @@ def goster() -> None:
     xu = p["endeks"]["duz_kapanis"].reindex(d.index).ffill()
     seriler["XU100 (TL)"] = xu / xu.iloc[0] - 1
     st.plotly_chart(ortak.cizgiler(seriler, f"Dönem getirisi · {donem} (temettü ve bölünmeler dahil)", yuzde=True),
-                    use_container_width=True)
+                    width="stretch")
     st.caption("TL ve USD getirisi arasındaki fark, aynı dönemdeki kur kaybını gösterir. "
                "Yüksek enflasyon döneminde TL getirisi yanıltıcı derecede yüksek görünebilir.")
 
@@ -57,5 +57,5 @@ def goster() -> None:
         son = df[["acilis", "yuksek", "dusuk", "kapanis", "hacim"]].tail(10).iloc[::-1]
         son.index = son.index.strftime("%d.%m.%Y")
         st.dataframe(son.style.format({"hacim": "{:,.0f}", "acilis": "{:,.2f}", "yuksek": "{:,.2f}",
-                                       "dusuk": "{:,.2f}", "kapanis": "{:,.2f}"}), use_container_width=True)
+                                       "dusuk": "{:,.2f}", "kapanis": "{:,.2f}"}), width="stretch")
     ortak.geri_bildirim("Hisse Analizi")
