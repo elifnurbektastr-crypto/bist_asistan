@@ -36,9 +36,9 @@ jobs:
       EVDS_API_KEY: ${{ secrets.EVDS_API_KEY }}
       PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -50,6 +50,16 @@ jobs:
         run: |
           git config user.name "ileri-test-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Ayar kontrolü (değerler yazılmaz, sadece var/yok)
+        run: |
+          python -c "
+          import os
+          for ad in ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'EVDS_API_KEY']:
+              v = os.getenv(ad, '').strip()
+              ek = ' · sb_secret_ ile başlıyor' if v.startswith('sb_secret_') else (' · https ile başlıyor' if v.startswith('https://') else '')
+              print(f'::notice::{ad}: ' + (f'var ({len(v)} karakter{ek})' if v else 'YOK'))
+          "
 
       - name: Veriyi buluttan al
         run: python -m src.bulut --indir

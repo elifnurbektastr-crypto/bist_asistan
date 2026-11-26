@@ -124,7 +124,13 @@ def main() -> None:
     g.add_argument("--indir", action="store_true")
     arg = ayr.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    yukle() if arg.yukle else indir()
+    try:
+        yukle() if arg.yukle else indir()
+    except Exception as hata:
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            # GitHub'da herkese açık 'annotation' olarak görünür (secret değerleri GitHub maskeler)
+            print(f"::error::bulut {'yukle' if arg.yukle else 'indir'}: {type(hata).__name__}: {str(hata)[:300]}")
+        raise
 
 
 if __name__ == "__main__":
