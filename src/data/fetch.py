@@ -235,6 +235,27 @@ def _bugun_guncellendi_mi(ad: str, klasor: str = FIYAT_KLASORU, dizin: Path | No
     return simdi < kapanis or zaman >= kapanis
 
 
+def beklenen_son_gun(simdi: pd.Timestamp | None = None) -> pd.Timestamp:
+    """Şu an itibarıyla verinin ulaşması gereken son işlem günü.
+
+    Seans kapandıktan sonra (hafta içi): bugün. Öncesinde ya da hafta sonu: bir önceki hafta içi günü.
+    (Resmi tatiller bilinmediği için tatil günü de beklenir; o gün sadece gereksiz bir deneme olur.)
+    """
+    simdi = simdi or pd.Timestamp.now(tz=config.SAAT_DILIMI)
+    yerel = simdi.tz_convert(config.SAAT_DILIMI).tz_localize(None) if simdi.tz else simdi
+    bugun = yerel.normalize()
+    kapanis = pd.Timestamp(f"{bugun.date()} {config.SEANS_KAPANIS_SAATI}")
+    if bugun.dayofweek < 5 and yerel >= kapanis:
+        return bugun
+    return bugun - pd.offsets.BDay(1)
+
+
+def onbellek_guncel_mi(df: pd.DataFrame | None, simdi: pd.Timestamp | None = None) -> bool:
+    """Önbellek, beklenen son işlem gününün verisini içeriyor mu? (Dosyanın yazılma zamanına değil
+    içeriğine bakılır: Yahoo engellediği gün yeniden yazılan eski veri 'güncel' sayılmamalı.)"""
+    return df is not None and len(df) > 0 and df.index[-1] >= beklenen_son_gun(simdi)
+
+
 def fiyat_verisi(semboller: list[str], baslangic: str = config.BASLANGIC_TARIHI,
                  yenile: bool = False, dizin: Path | None = None,
                  cevrimdisi: bool = False) -> dict[str, pd.DataFrame]:
@@ -255,7 +276,7 @@ def fiyat_verisi(semboller: list[str], baslangic: str = config.BASLANGIC_TARIHI,
 
     for s in semboller:
         eski = None if yenile else cache.oku(s, FIYAT_KLASORU, dizin)
-        if eski is not None and _bugun_guncellendi_mi(s, FIYAT_KLASORU, dizin):
+        if eski is not None and onbellek_guncel_mi(eski):
             sonuc[s] = eski
         elif eski is not None and not eski.empty:
             artimli[s] = eski

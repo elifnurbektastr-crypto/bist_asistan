@@ -158,3 +158,24 @@ def test_cevrimdisi_internete_gitmez(tmp_path, monkeypatch, yf_ornek):
     monkeypatch.setattr(fetch, "_indir", lambda *a, **k: pytest.fail("internete gidilmemeli"))
     veri = fetch.fiyat_verisi(["AAA", "YOK"], dizin=tmp_path, cevrimdisi=True)
     assert list(veri) == ["AAA.IS"]
+
+
+@pytest.mark.parametrize("simdi, beklenen", [
+    ("2026-11-26 12:00", "2026-11-25"),   # Perşembe, seans sürüyor -> dünkü kapanış
+    ("2026-11-26 19:30", "2026-11-26"),   # Perşembe akşam -> bugünkü kapanış
+    ("2026-11-28 15:00", "2026-11-27"),   # Cumartesi -> Cuma
+    ("2026-11-30 09:00", "2026-11-27"),   # Pazartesi sabah -> Cuma
+])
+def test_beklenen_son_gun(simdi, beklenen):
+    from src.data.fetch import beklenen_son_gun
+    assert beklenen_son_gun(pd.Timestamp(simdi, tz="Europe/Istanbul")) == pd.Timestamp(beklenen)
+
+
+def test_onbellek_guncelligi_icerige_bakar(yf_ornek):
+    from src.data.fetch import onbellek_guncel_mi
+    df = standartlastir(yf_ornek)   # son gün 2024-01-11 (Perşembe)
+    tz = "Europe/Istanbul"
+    assert onbellek_guncel_mi(df, pd.Timestamp("2024-01-11 20:00", tz=tz))
+    assert onbellek_guncel_mi(df, pd.Timestamp("2024-01-12 11:00", tz=tz))       # Cuma seans içi
+    assert not onbellek_guncel_mi(df, pd.Timestamp("2024-01-12 19:00", tz=tz))   # Cuma kapanışı eksik
+    assert not onbellek_guncel_mi(None)
