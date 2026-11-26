@@ -1,6 +1,7 @@
 """Sekmelerin ortak kullandığı parçalar: veri yükleme (önbellekli), grafik teması, duyuru, geri bildirim."""
 
 import math
+from concurrent.futures import ThreadPoolExecutor
 import os
 import sys
 from pathlib import Path
@@ -106,6 +107,7 @@ MOBIL_STIL = """
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {
     flex: 1 1 calc(50% - 0.8rem) !important; width: calc(50% - 0.8rem) !important; min-width: calc(50% - 0.8rem) !important; }
   [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+  h2 { font-size: 1.2rem !important; } h3 { font-size: 1.05rem !important; }
   [data-testid="stMetricLabel"] p { font-size: 0.8rem !important; }
 }
 </style>
@@ -120,11 +122,16 @@ def mobil_stil() -> None:
 def ciz(fig: go.Figure, **_) -> None:
     """Bütün Plotly grafikleri buradan çizilir. Telefonda: başlık grafiğin üstüne metin olarak alınır
     (Plotly başlığı kaydırmaz, kesilir), açıklama alta iner, yükseklik azalır, araç simgeleri gizlenir."""
+    # Tarih eksenleri Türkçe sayısal biçimde (Streamlit'in Plotly'sinde Türkçe ay adları yok: "Jan 2026" yerine)
+    x = getattr(fig.data[0], "x", None) if fig.data else None
+    if x is not None and len(x) and pd.api.types.is_datetime64_any_dtype(pd.Series(x[:1])):
+        fig.update_xaxes(tickformat="%m.%Y", hoverformat="%d.%m.%Y")
     if mobil_mi():
         baslik = fig.layout.title.text
         if baslik:
             st.markdown(f"**{baslik}**")
-        fig.update_layout(title=None, height=min(fig.layout.height or 380, 320), annotations=[],
+        fig.layout.annotations = ()   # çizgi sonu değer etiketleri dar ekranda üst üste biner
+        fig.update_layout(title=None, height=min(fig.layout.height or 380, 320),
                           margin=dict(l=4, r=8, t=10, b=10), font=dict(size=11),
                           legend=dict(orientation="h", yanchor="top", y=-0.18, x=0))
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
@@ -163,6 +170,12 @@ def toplu_canli() -> pd.DataFrame | None:
 
 
 @st.cache_resource
+def _yahoo_havuzu() -> ThreadPoolExecutor:
+    """Yahoo isteklerinin çalıştığı küçük iş parçacığı havuzu (sayfayı bekletmemek için)."""
+    return ThreadPoolExecutor(max_workers=2, thread_name_prefix="yahoo")
+
+
+@st.cache_resource
 def _yahoo_durumu() -> dict:
     """Yahoo doğrudan isteği reddederse bir süre tekrar denenmez (sayfa donmasın)."""
     return {"engel_bitis": pd.Timestamp(0, tz="UTC")}
@@ -174,8 +187,11 @@ def canli_mumlar(kod: str) -> pd.DataFrame | None:
     durum = _yahoo_durumu()
     simdi = pd.Timestamp.now(tz="UTC")
     if simdi >= durum["engel_bitis"]:
+        # yfinance engellendiğinde kendi içinde tekrar dener ve zaman aşımına uymaz (30+ sn).
+        # Ayrı iş parçacığında en fazla 5 sn beklenir; sayfa donmaz, geç gelen cevap boşa gider.
+        is_parcacigi = _yahoo_havuzu().submit(anlik.yahoodan_cek, [config.yf_sembol(kod)], 8)
         try:
-            t = anlik.yahoodan_cek([config.yf_sembol(kod)], zaman_asimi=8)
+            t = is_parcacigi.result(timeout=5)
         except Exception:
             t = pd.DataFrame()
         if len(t):
