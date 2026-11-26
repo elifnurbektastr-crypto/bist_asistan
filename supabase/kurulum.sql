@@ -50,3 +50,11 @@ drop policy if exists "uygulama veri dosyalarini okur" on storage.objects;
 create policy "uygulama veri dosyalarini okur" on storage.objects
   for select to anon
   using (bucket_id = 'veri');
+
+-- ---------------------------------------------------------------------------
+-- Tablo izinleri (yeni projelerde tablolar hiçbir role otomatik açılmaz)
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, service_role;
+grant select, insert, update, delete on public.duyurular, public.geri_bildirimler to service_role;
+grant select on public.duyurular to anon;
+grant insert on public.geri_bildirimler to anon;
