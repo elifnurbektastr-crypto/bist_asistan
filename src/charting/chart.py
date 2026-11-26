@@ -18,7 +18,7 @@ RENKLER = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6"]   #
 YUKSELIS, DUSUS = "#1baf7a", "#e34948"
 METIN, IKINCIL, IZGARA, ZEMIN = "#0b0b0b", "#52514e", "#ebeae6", "#fcfcfb"
 ARALIKLAR = {"Günlük": None, "Haftalık": "W-FRI", "Aylık": "ME"}
-GUN_ICI_ARALIKLAR = {"5 dakika": None, "15 dakika": "15min", "1 saat": "60min"}
+GUN_ICI_ARALIKLAR = {"5 dakika": "5min", "15 dakika": "15min", "1 saat": "60min"}
 MAKS_CIZGI = 6
 
 
@@ -51,14 +51,12 @@ def yeniden_ornekle(ohlc: pd.DataFrame, aralik: str) -> pd.DataFrame:
 
 
 def gun_ici_ohlc(mumlar: pd.DataFrame, aralik: str) -> pd.DataFrame:
-    """Bir hissenin 5 dakikalık mumlarını (zaman sütunlu) seçilen gün içi aralığa çevirir.
+    """Bir hissenin gün içi mumlarını (1 ya da 5 dakikalık, zaman sütunlu) seçilen aralığa çevirir.
 
     Her gün kendi içinde gruplanır; bir günün son mumu ertesi güne taşmaz.
     """
     ohlc = mumlar.set_index("zaman")[["acilis", "yuksek", "dusuk", "kapanis", "hacim"]].sort_index()
     kural = GUN_ICI_ARALIKLAR[aralik]
-    if kural is None:
-        return ohlc
     return (ohlc.resample(kural, origin="start_day")
                 .agg({"acilis": "first", "yuksek": "max", "dusuk": "min", "kapanis": "last", "hacim": "sum"})
                 .dropna(subset=["kapanis"]))
@@ -96,7 +94,7 @@ def eksik_gunler(index: pd.DatetimeIndex) -> list[str]:
 def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gun: int | None = 252,
                   ma: list[int] = (), ema: list[int] = (), bollinger_acik: bool = False,
                   rsi_acik: bool = False, macd_acik: bool = False, gun_ici: pd.DataFrame | None = None,
-                  mobil: bool = False) -> dict:
+                  mobil: bool = False, koyu: bool = False) -> dict:
     """Mum grafiği + indikatörler. Plotly JSON tanımı döner (bileşene gönderilir).
 
     İndikatörler tüm geçmiş üzerinde hesaplanır, sonra dönem kesilir: böylece MA200 gibi uzun
@@ -190,6 +188,19 @@ def sekil_olustur(df: pd.DataFrame, kod: str, aralik: str = "Günlük", donem_gu
         newshape=dict(line=dict(color="#6250d6", width=2), fillcolor="rgba(98,80,214,0.12)"),
         hoverlabel=dict(bgcolor="white", font_color=METIN),
     )
+    if koyu:
+        r = {"zemin": "#1a1a19", "metin": "#f0efec", "ikincil": "#c3c2b7", "izgara": "#2e2e2b", "eksen": "#4a4a46"}
+        fig.update_layout(paper_bgcolor=r["zemin"], plot_bgcolor=r["zemin"], font_color=r["ikincil"],
+                          hoverlabel=dict(bgcolor=r["zemin"], font_color=r["metin"]),
+                          newshape=dict(line=dict(color="#9085e9")))
+        fig.update_xaxes(linecolor=r["eksen"])
+        fig.update_yaxes(gridcolor=r["izgara"])
+        koyu_renk = dict(zip(RENKLER, ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"]))
+        for iz in fig.data:
+            if iz.type == "scatter" and getattr(iz.line, "color", None) in koyu_renk:
+                iz.line.color = koyu_renk[iz.line.color]
+        for a in fig.layout.annotations:
+            a.font.color = r["ikincil"]
     return json.loads(fig.to_json())   # numpy dizileri JSON'a çevrilir (bileşene gönderilebilir)
 
 

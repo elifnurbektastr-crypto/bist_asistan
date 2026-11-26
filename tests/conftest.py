@@ -7,7 +7,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _supabase_kapali(monkeypatch):
     """Testler yerel SQLite deposunu kullanır; boş ortam değişkeni .env'deki değeri gölgeler."""
-    for ad in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "BIST_BULUT"):
+    for ad in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "BIST_BULUT", "SINYALLER_ACIK"):
         monkeypatch.setenv(ad, "")
 
 

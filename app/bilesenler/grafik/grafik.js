@@ -177,6 +177,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   }
 
   function ciz(args) {
+    document.body.classList.toggle("koyu", !!args.koyu);
     // Streamlit sekmesi gizliyken genişlik 0'dır; Plotly bu durumda yazı genişliklerini 0 ölçer ve
     // açıklama/etiketler üst üste biner. Görünür olana kadar çizimi ertele.
     if (div.clientWidth === 0) {

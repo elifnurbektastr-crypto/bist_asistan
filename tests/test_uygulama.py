@@ -55,3 +55,15 @@ def test_her_hisse_tum_sekmelerde_hatasiz():
         for kod in kodlar:
             at.selectbox(key=kutu).set_value(kod).run()
             assert not at.exception, (kutu, kod, [e.value for e in at.exception])
+
+
+@pytest.mark.skipif(not (config.VERI_DIZINI / "fiyat" / "THYAO.IS.parquet").exists(),
+                    reason="önbellekte veri yok")
+def test_sinyaller_sekmesi_sadece_ayar_acikken(monkeypatch):
+    monkeypatch.setenv("SINYALLER_ACIK", "1")
+    at = AppTest.from_file(str(config.KOK_DIZIN / "app" / "streamlit_app.py"), default_timeout=180)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    etiketler = [t.label for t in at.tabs]
+    assert len(etiketler) == 6 and any("Sinyaller" in e for e in etiketler)
+    assert any("sinyaller" in m.value.lower() for m in at.markdown)

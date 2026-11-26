@@ -82,3 +82,20 @@ def test_alt_kume_yukleme_diger_dosyalari_korur(tmp_path, monkeypatch):
     assert yeni["fiyat/A.parquet"] == "h1"                     # dokunulmadı
     assert yeni["anlik/anlik.parquet"] != "eski"
     assert kova.dosyalar["anlik/anlik.parquet"] == b"yeni"
+
+
+def test_grafik_cevabi_tablo_istanbul_saati_ve_bos_mum():
+    """Yahoo chart cevabı: UTC zaman damgası İstanbul saatine çevrilir, kapanışı boş mum atılır."""
+    cevap = {"chart": {"result": [{
+        "timestamp": [1795695600, 1795695660, 1795695720],   # 2026-11-26 12:20-12:22 UTC
+        "indicators": {"quote": [{"open": [10, 11, None], "high": [10.5, 11.5, None], "low": [9.5, 10.5, None],
+                                  "close": [10.2, 11.2, None], "volume": [100, 200, None]}]}}]}}
+    t = anlik._grafik_cevabi_tablo(cevap, "THYAO.IS")
+    assert len(t) == 2 and set(t["kod"]) == {"THYAO"}
+    assert t["zaman"].iloc[0] == pd.Timestamp("2026-11-26 15:20")
+    assert t["kapanis"].tolist() == [10.2, 11.2]
+
+
+def test_grafik_cevabi_bos_ya_da_hatali():
+    assert anlik._grafik_cevabi_tablo({"chart": {"result": None}}, "X.IS").empty
+    assert anlik._grafik_cevabi_tablo({}, "X.IS").empty

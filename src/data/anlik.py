@@ -13,7 +13,6 @@ import argparse
 import logging
 
 import pandas as pd
-import yfinance as yf
 
 from src import config
 from src.data import cache
@@ -22,7 +21,6 @@ log = logging.getLogger(__name__)
 KLASOR = "anlik"
 ARALIK = "5m"
 GECMIS = "5d"          # son 5 işlem gününün 5 dakikalık mumları (gün içi grafik için)
-PARCA = 50             # tek istekte en fazla bu kadar sembol
 GECIKME_DK = 15
 
 
@@ -51,18 +49,54 @@ def _uzun_tablo(ham: pd.DataFrame, semboller: list[str]) -> pd.DataFrame:
     return pd.concat(parcalar, ignore_index=True).sort_values(["kod", "zaman"]).reset_index(drop=True)
 
 
-def yahoodan_cek(semboller: list[str], zaman_asimi: float = 30) -> pd.DataFrame:
-    """Sembollerin son 5 günlük 5 dakikalık mumlarını Yahoo'dan toplu çeker (boşsa boş tablo)."""
-    parcalar = []
-    for i in range(0, len(semboller), PARCA):
-        p = semboller[i:i + PARCA]
-        try:
-            ham = yf.download(p, period=GECMIS, interval=ARALIK, group_by="ticker", progress=False,
-                              threads=True, timeout=zaman_asimi, auto_adjust=False)
-            parcalar.append(_uzun_tablo(ham, p))
-        except Exception as hata:
-            log.warning("Gün içi veri alınamadı (%d sembol): %s", len(p), hata)
-    return pd.concat(parcalar, ignore_index=True) if parcalar else _uzun_tablo(pd.DataFrame(), [])
+CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sembol}"
+TARAYICI = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+ES_ZAMANLI = 8         # aynı anda en fazla bu kadar istek
+
+
+def _grafik_cevabi_tablo(cevap: dict, sembol: str) -> pd.DataFrame:
+    """Yahoo chart API cevabını (zaman, kod, OHLCV) tablosuna çevirir; boş mumları atar."""
+    sonuc = (cevap.get("chart") or {}).get("result") or []
+    if not sonuc or not sonuc[0].get("timestamp"):
+        return _uzun_tablo(pd.DataFrame(), [])
+    r = sonuc[0]
+    q = r["indicators"]["quote"][0]
+    zaman = (pd.to_datetime(r["timestamp"], unit="s", utc=True)
+             .tz_convert(config.SAAT_DILIMI).tz_localize(None))
+    df = pd.DataFrame({"zaman": zaman, "kod": sembol.replace(".IS", ""),
+                       "acilis": q.get("open"), "yuksek": q.get("high"), "dusuk": q.get("low"),
+                       "kapanis": q.get("close"), "hacim": q.get("volume")})
+    return df.dropna(subset=["kapanis"]).reset_index(drop=True)
+
+
+def _tek_sembol(oturum, sembol: str, aralik: str, gecmis: str, zaman_asimi: float) -> pd.DataFrame:
+    try:
+        r = oturum.get(CHART_URL.format(sembol=sembol), params={"interval": aralik, "range": gecmis},
+                       headers=TARAYICI, timeout=zaman_asimi)
+        r.raise_for_status()
+        return _grafik_cevabi_tablo(r.json(), sembol)
+    except Exception as hata:
+        log.warning("%s gün içi veri alınamadı: %s", sembol, hata)
+        return _uzun_tablo(pd.DataFrame(), [])
+
+
+def yahoodan_cek(semboller: list[str], zaman_asimi: float = 10, aralik: str = ARALIK,
+                 gecmis: str = GECMIS) -> pd.DataFrame:
+    """Sembollerin gün içi mumlarını Yahoo'nun chart adresinden çeker (boşsa boş tablo).
+
+    yfinance yerine doğrudan chart adresi kullanılır: yfinance'in oturum (crumb) adımı sık sık
+    engellenip dakikalarca takılıyor; chart adresi oturum istemez ve 15 dk gecikmeli veriyi anında verir.
+    Varsayılan: son 5 günün 5 dakikalık mumları (toplu görev). Uygulama seçili hisse için 1 dakikalık ister.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    import requests
+    with requests.Session() as oturum, ThreadPoolExecutor(ES_ZAMANLI) as havuz:
+        parcalar = list(havuz.map(lambda s: _tek_sembol(oturum, s, aralik, gecmis, zaman_asimi), semboller))
+    parcalar = [x for x in parcalar if len(x)]
+    if not parcalar:
+        return _uzun_tablo(pd.DataFrame(), [])
+    return pd.concat(parcalar, ignore_index=True).sort_values(["kod", "zaman"]).reset_index(drop=True)
 
 
 def anlik_tablo(mumlar: pd.DataFrame) -> pd.DataFrame:

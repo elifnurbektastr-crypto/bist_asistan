@@ -48,17 +48,14 @@ def goster() -> None:
             aralik = "Günlük"
         else:
             gun_ici = chart.gun_ici_ohlc(mumlar, aralik)
+    ortak.canli_fiyat_karti(kod)
     sekil = chart.sekil_olustur(df, kod, "Günlük" if gun_ici is not None else aralik, DONEMLER[donem],
-                                ma, ema, bb, rsi_acik, macd_acik, gun_ici=gun_ici, mobil=mobil)
-    cizim_grafigi(sekil, kod, key="bist_grafik")
+                                ma, ema, bb, rsi_acik, macd_acik, gun_ici=gun_ici, mobil=mobil,
+                                koyu=ortak.koyu_mu())
+    cizim_grafigi(sekil, kod, key="bist_grafik", koyu=ortak.koyu_mu())
 
     son = chart.son_degerler(df)
-    canli = ortak.canli_ozet(kod)
-    k1, k2, k3, k4 = st.columns(4)
-    if canli is not None and canli["zaman"].normalize() >= p["veri"][config.yf_sembol(kod)].index[-1]:
-        k1.metric(f"Son fiyat · {canli['zaman']:%H:%M}", f"{canli['son_fiyat']:,.2f} ₺", f"{canli['degisim']:+.2%}")
-    else:
-        k1.metric("Kapanış", f"{son['kapanis']:,.2f} ₺")
+    k2, k3, k4 = st.columns(3)
     k2.metric("RSI (14)", f"{son['rsi_14']:.0f}",
               "aşırı alım" if son["rsi_14"] > 70 else "aşırı satım" if son["rsi_14"] < 30 else None,
               delta_color="off")

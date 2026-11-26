@@ -21,6 +21,6 @@ _plotly_js_hazirla()
 _grafik = components.declare_component("bist_grafik", path=str(_GRAFIK_DIZINI))
 
 
-def grafik(sekil: dict, kod: str, key: str | None = None) -> None:
+def grafik(sekil: dict, kod: str, key: str | None = None, koyu: bool = False) -> None:
     """Çizim araçlı mum grafiği. Çizimler kullanıcının tarayıcısında hisse bazında saklanır."""
-    _grafik(sekil=sekil, kod=kod, key=key, default=None)
+    _grafik(sekil=sekil, kod=kod, koyu=koyu, key=key, default=None)

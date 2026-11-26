@@ -1,7 +1,6 @@
 """Sekmelerin ortak kullandığı parçalar: veri yükleme (önbellekli), grafik teması, duyuru, geri bildirim."""
 
 import math
-from concurrent.futures import ThreadPoolExecutor
 import os
 import sys
 from pathlib import Path
@@ -19,9 +18,23 @@ from src.data import anlik, cache, dividends  # noqa: E402
 from src.depo import NOT_SINIRI, depo_al  # noqa: E402
 from src.models import deney  # noqa: E402
 
-# Grafik renkleri: sabit sıra (bir seri her grafikte aynı rengi alır), açık zemin
+# Grafik renkleri: sabit sıra (bir seri her grafikte aynı rengi alır). Karanlık temada aynı tonların
+# koyu zemine göre ayarlanmış adımları kullanılır.
 RENKLER = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
+RENKLER_KOYU = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"]
 METIN, IKINCIL, IZGARA, ZEMIN = "#0b0b0b", "#52514e", "#ebeae6", "#fcfcfb"
+TEMALAR = {
+    "acik": {"zemin": ZEMIN, "metin": METIN, "ikincil": IKINCIL, "izgara": IZGARA, "eksen": "#c9c8c3"},
+    "koyu": {"zemin": "#1a1a19", "metin": "#f0efec", "ikincil": "#c3c2b7", "izgara": "#2e2e2b", "eksen": "#4a4a46"},
+}
+
+
+def koyu_mu() -> bool:
+    """Kullanıcının tarayıcısı/telefonu karanlık temada mı? (Streamlit cihaz temasını bildirir.)"""
+    try:
+        return st.context.theme.type == "dark"
+    except Exception:
+        return False
 
 YASAL_UYARI = ("Bu uygulama eğitim ve portföy amaçlıdır; **yatırım tavsiyesi değildir**. "
                "Veriler gecikmelidir ve hata içerebilir. Geçmiş performans gelecek sonuçların garantisi değildir.")
@@ -31,7 +44,7 @@ YASAL_UYARI = ("Bu uygulama eğitim ve portföy amaçlıdır; **yatırım tavsiy
 # Veri (internete gitmez; veriyi admin tarafı günceller)
 # ---------------------------------------------------------------------------
 
-GIZLI_AYARLAR = ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "BIST_BULUT")
+GIZLI_AYARLAR = ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "BIST_BULUT", "SINYALLER_ACIK")
 
 
 def _secrets_ortama_aktar() -> None:
@@ -119,6 +132,28 @@ def mobil_stil() -> None:
     st.markdown(MOBIL_STIL, unsafe_allow_html=True)
 
 
+def temaya_uyarla(fig: go.Figure) -> go.Figure:
+    """Grafiği kullanıcının temasına (açık/karanlık) göre boyar: zemin, yazı, ızgara ve seri renkleri."""
+    koyu = koyu_mu()
+    r = TEMALAR["koyu" if koyu else "acik"]
+    fig.update_layout(paper_bgcolor=r["zemin"], plot_bgcolor=r["zemin"], font_color=r["ikincil"],
+                      title_font_color=r["metin"], legend_font_color=r["ikincil"],
+                      hoverlabel=dict(bgcolor=r["zemin"], font_color=r["metin"], bordercolor=r["eksen"]))
+    fig.update_xaxes(linecolor=r["eksen"], gridcolor=r["izgara"])
+    fig.update_yaxes(linecolor=r["eksen"], gridcolor=r["izgara"])
+    for a in fig.layout.annotations:
+        a.font.color = r["metin"]
+    if koyu:   # açık temaya göre seçilmiş seri renklerini karanlık temadaki karşılıklarıyla değiştir
+        eslesme = dict(zip(RENKLER, RENKLER_KOYU))
+        for iz in fig.data:
+            for alan in ("line", "marker"):
+                nesne = getattr(iz, alan, None)
+                renk = getattr(nesne, "color", None) if nesne is not None else None
+                if isinstance(renk, str) and renk in eslesme:
+                    nesne.color = eslesme[renk]
+    return fig
+
+
 def ciz(fig: go.Figure, **_) -> None:
     """Bütün Plotly grafikleri buradan çizilir. Telefonda: başlık grafiğin üstüne metin olarak alınır
     (Plotly başlığı kaydırmaz, kesilir), açıklama alta iner, yükseklik azalır, araç simgeleri gizlenir."""
@@ -126,6 +161,7 @@ def ciz(fig: go.Figure, **_) -> None:
     x = getattr(fig.data[0], "x", None) if fig.data else None
     if x is not None and len(x) and pd.api.types.is_datetime64_any_dtype(pd.Series(x[:1])):
         fig.update_xaxes(tickformat="%m.%Y", hoverformat="%d.%m.%Y")
+    temaya_uyarla(fig)
     if mobil_mi():
         baslik = fig.layout.title.text
         if baslik:
@@ -158,9 +194,30 @@ def mobil_mi() -> bool:
 # Canlı (gün içi, 15 dk gecikmeli) veri
 # ---------------------------------------------------------------------------
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_resource
+def _yahoo_durumu() -> dict:
+    """Yahoo isteği başarısız olursa kısa bir süre tekrar denenmez (her dakika boşuna beklenmesin)."""
+    return {"engel_bitis": pd.Timestamp(0, tz="UTC")}
+
+
+def _yahoodan(semboller: list[str], aralik: str, zaman_asimi: float) -> pd.DataFrame:
+    """Yahoo'dan doğrudan gün içi mum (15 dk gecikmeli); hata olursa 2 dakika denenmez."""
+    durum = _yahoo_durumu()
+    simdi = pd.Timestamp.now(tz="UTC")
+    if simdi < durum["engel_bitis"]:
+        return pd.DataFrame()
+    t = anlik.yahoodan_cek(semboller, zaman_asimi, aralik, "5d")
+    if t.empty:
+        durum["engel_bitis"] = simdi + pd.Timedelta(minutes=2)
+    return t
+
+
+@st.cache_data(ttl=120, show_spinner="Canlı fiyatlar alınıyor…")
 def toplu_canli() -> pd.DataFrame | None:
-    """Bütün hisselerin 5 dakikalık mumları: GitHub'daki görevin 15 dakikada bir Supabase'e koyduğu kopya."""
+    """Bütün hisselerin 5 dakikalık mumları: Yahoo'dan doğrudan (~5 sn); olmazsa Supabase'deki son kopya."""
+    t = _yahoodan([config.yf_sembol(k) for k in kodlar()], "5m", 6)
+    if len(t) and t["kod"].nunique() >= len(kodlar()) // 2:
+        return t
     if _bulut_ayarli():
         try:
             bulut.indir(klasorler=[anlik.KLASOR])
@@ -169,34 +226,12 @@ def toplu_canli() -> pd.DataFrame | None:
     return anlik.oku()
 
 
-@st.cache_resource
-def _yahoo_havuzu() -> ThreadPoolExecutor:
-    """Yahoo isteklerinin çalıştığı küçük iş parçacığı havuzu (sayfayı bekletmemek için)."""
-    return ThreadPoolExecutor(max_workers=2, thread_name_prefix="yahoo")
-
-
-@st.cache_resource
-def _yahoo_durumu() -> dict:
-    """Yahoo doğrudan isteği reddederse bir süre tekrar denenmez (sayfa donmasın)."""
-    return {"engel_bitis": pd.Timestamp(0, tz="UTC")}
-
-
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=55, show_spinner=False)
 def canli_mumlar(kod: str) -> pd.DataFrame | None:
-    """Seçili hissenin 5 dakikalık mumları: önce Yahoo'dan doğrudan (8 sn), olmazsa toplu kopyadan."""
-    durum = _yahoo_durumu()
-    simdi = pd.Timestamp.now(tz="UTC")
-    if simdi >= durum["engel_bitis"]:
-        # yfinance engellendiğinde kendi içinde tekrar dener ve zaman aşımına uymaz (30+ sn).
-        # Ayrı iş parçacığında en fazla 5 sn beklenir; sayfa donmaz, geç gelen cevap boşa gider.
-        is_parcacigi = _yahoo_havuzu().submit(anlik.yahoodan_cek, [config.yf_sembol(kod)], 8)
-        try:
-            t = is_parcacigi.result(timeout=5)
-        except Exception:
-            t = pd.DataFrame()
-        if len(t):
-            return t
-        durum["engel_bitis"] = simdi + pd.Timedelta(minutes=10)
+    """Seçili hissenin 1 dakikalık mumları (Yahoo, 15 dk gecikmeli); olmazsa toplu kopyadan 5 dakikalık."""
+    t = _yahoodan([config.yf_sembol(kod)], "1m", 4)
+    if len(t):
+        return t
     toplu = toplu_canli()
     if toplu is None or toplu.empty:
         return None
@@ -211,6 +246,34 @@ def canli_ozet(kod: str) -> pd.Series | None:
         return None
     t = anlik.anlik_tablo(m)
     return t.loc[kod] if kod in t.index else None
+
+
+def seans_acik_mi(simdi: pd.Timestamp | None = None) -> bool:
+    """BIST pay piyasası seansı (hafta içi 10:00-18:10) şu an açık mı? (Resmi tatiller hariç tutulmaz.)"""
+    simdi = simdi or pd.Timestamp.now(tz=config.SAAT_DILIMI).tz_localize(None)
+    dakika = simdi.hour * 60 + simdi.minute
+    return simdi.dayofweek < 5 and 10 * 60 <= dakika <= 18 * 60 + 10
+
+
+@st.fragment(run_every=60)
+def canli_fiyat_karti(kod: str) -> None:
+    """Seçili hissenin canlı fiyatı; her dakika kendiliğinden yenilenir ve verinin yaşını gösterir."""
+    ozet = canli_ozet(kod)
+    if ozet is None:
+        st.caption("Canlı fiyat şu an alınamadı; son kesinleşmiş kapanış gösteriliyor.")
+        return
+    simdi = pd.Timestamp.now(tz=config.SAAT_DILIMI).tz_localize(None)
+    yas = max(0, int((simdi - ozet["zaman"]).total_seconds() // 60))
+    c1, c2 = st.columns([1, 1])
+    c1.metric(f"{kod} · {ozet['zaman']:%H:%M}", f"{ozet['son_fiyat']:,.2f} ₺", f"{ozet['degisim']:+.2%}",
+              help="Değişim önceki günün kapanışına göre. Ücretsiz BIST verisi 15 dakika gecikmelidir.")
+    if seans_acik_mi(simdi):
+        c2.markdown(f"🟢 **Canlı** · veri {yas} dk önce  \n<small>Yahoo 15 dk gecikmeli · her dakika yenilenir</small>",
+                    unsafe_allow_html=True)
+        if yas > 20:
+            st.warning(f"Veri {yas} dakika eski: kaynak şu an gecikiyor ya da erişimi engelliyor.", icon="⏱️")
+    else:
+        c2.markdown(f"⚪ **Seans kapalı**  \n<small>Son işlem {ozet['zaman']:%d.%m %H:%M}</small>", unsafe_allow_html=True)
 
 
 def canli_durum_metni() -> str:

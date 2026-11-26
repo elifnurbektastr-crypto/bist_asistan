@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <title>BIST grafik</title>
   <style>
-    :root { --metin: #0b0b0b; --ikincil: #52514e; --kenar: #d9d8d3; --zemin: #fcfcfb; --vurgu: #2a78d6; }
+    :root { --metin: #0b0b0b; --ikincil: #52514e; --kenar: #d9d8d3; --zemin: #fcfcfb; --vurgu: #2a78d6; --dugme: #fff; }
+    body.koyu { --metin: #f0efec; --ikincil: #c3c2b7; --kenar: #3a3a37; --zemin: #1a1a19; --vurgu: #3987e5; --dugme: #262624; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: "Source Sans Pro", system-ui, sans-serif; color: var(--metin); background: var(--zemin); }
     #arac-cubugu { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0 8px; }
     button, .dugme { font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--kenar); border-radius: 6px;
-                     background: #fff; color: var(--metin); cursor: pointer; line-height: 1.2; }
+                     background: var(--dugme); color: var(--metin); cursor: pointer; line-height: 1.2; }
     button:hover, .dugme:hover { border-color: var(--vurgu); }
     button.aktif { background: var(--vurgu); border-color: var(--vurgu); color: #fff; }
     button:focus-visible, .dugme:focus-within { outline: 2px solid var(--vurgu); outline-offset: 1px; }

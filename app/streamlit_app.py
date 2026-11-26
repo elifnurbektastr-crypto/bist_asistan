@@ -14,7 +14,8 @@ import streamlit as st  # noqa: E402
 st.set_page_config(page_title="BIST Araştırma Asistanı", page_icon="📈", layout="wide")
 
 from app import ortak  # noqa: E402
-from app.sekmeler import analiz, backtest, grafik, model, temettu  # noqa: E402
+from src import bulut  # noqa: E402
+from app.sekmeler import analiz, backtest, grafik, model, sinyaller, temettu  # noqa: E402
 
 
 def main() -> None:
@@ -22,17 +23,15 @@ def main() -> None:
     ortak.kenar_cubugu()
     st.title("📈 BIST Yatırım Araştırma Asistanı")
     ortak.duyurular()
-    sekmeler = st.tabs(["🕯️ Grafik", "🔎 Hisse Analizi", "💰 Temettü", "🧪 Backtest", "🤖 Model Performansı"])
-    with sekmeler[0]:
-        grafik.goster()
-    with sekmeler[1]:
-        analiz.goster()
-    with sekmeler[2]:
-        temettu.goster()
-    with sekmeler[3]:
-        backtest.goster()
-    with sekmeler[4]:
-        model.goster()
+    bulut.ayarlar()   # .env'i yükler (SINYALLER_ACIK gibi ayarlar için)
+    ortak.bulut_verisi()
+    sayfalar = [("🕯️ Grafik", grafik), ("🔎 Hisse Analizi", analiz)]
+    if sinyaller.sinyaller_acik():   # sadece özel kullanımda (Secrets/.env: SINYALLER_ACIK = "1")
+        sayfalar.append(("🎯 Sinyaller", sinyaller))
+    sayfalar += [("💰 Temettü", temettu), ("🧪 Backtest", backtest), ("🤖 Model Performansı", model)]
+    for sekme, modul in zip(st.tabs([ad for ad, _ in sayfalar]), [m for _, m in sayfalar]):
+        with sekme:
+            modul.goster()
     ortak.alt_bilgi()
 
 

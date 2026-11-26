@@ -19,9 +19,9 @@ def goster() -> None:
     kod = sol.selectbox("Hisse", ortak.kodlar(), index=ortak.kodlar().index("THYAO"), key="analiz_kod")
     donem = sag.radio("Dönem", list(DONEMLER), index=2, horizontal=True, key="analiz_donem")
 
+    ortak.canli_fiyat_karti(kod)
     gunluk_df = p["veri"][config.yf_sembol(kod)]
     df = ortak.gunluk_canli(gunluk_df, kod)          # seans içindeyse bugünkü (kesinleşmemiş) gün eklenir
-    canli = ortak.canli_ozet(kod)
     n = DONEMLER[donem]
     d = df.iloc[-(n + 1):] if n else df
     kur = p["kur"]["kapanis"].reindex(d.index, method="ffill") if p["kur"] is not None else None
@@ -29,11 +29,9 @@ def goster() -> None:
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
     gunluk = df["duz_kapanis"].iloc[-1] / df["duz_kapanis"].iloc[-2] - 1
-    if canli is not None and canli["zaman"].normalize() >= gunluk_df.index[-1]:
-        k1.metric(f"Son fiyat · {canli['zaman']:%H:%M}", f"{canli['son_fiyat']:,.2f} ₺", f"{canli['degisim']:+.2%}",
-                  help="15 dakika gecikmeli gün içi fiyat; değişim önceki günün kapanışına göre.")
-    else:
-        k1.metric("Son fiyat (kapanış)", f"{df['kapanis'].iloc[-1]:,.2f} ₺", f"{gunluk:+.2%}")
+    son_kapanis = gunluk_df["kapanis"].iloc[-1]
+    k1.metric(f"Kapanış {gunluk_df.index[-1]:%d.%m}", f"{son_kapanis:,.2f} ₺",
+              f"{gunluk_df['duz_kapanis'].iloc[-1] / gunluk_df['duz_kapanis'].iloc[-2] - 1:+.2%}")
     tl = d["duz_kapanis"].iloc[-1] / d["duz_kapanis"].iloc[0] - 1
     k2.metric(f"Getiri ({donem}, TL)", f"{tl:+.1%}")
     if kur is not None:
